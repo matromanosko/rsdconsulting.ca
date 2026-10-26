@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ReactNode, useEffect, useRef, useState } from "react";
+import { ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { FreeSampleDialog } from "./FreeSample";
 import ReportSkeleton from "./ReportSkeleton";
 import { Mark } from "@/app/components/ui";
@@ -83,9 +83,12 @@ const FONT = '"Segoe UI", "Segoe UI Web (West European)", -apple-system, BlinkMa
 // "This scrolls" hint, run inside the report frame when the frame is named
 // "intro" (first open of the agency and supplier pages): each scroll area
 // eases down a little, pauses, and eases back up. Any touch, wheel or key
-// stops it and returns the lists to the top.
+// stops it and returns the lists to the top. The frame clears its own name,
+// which survives reloads, so a filter change doesn't replay it.
 const INTRO_JS = `(() => {
-  if (window.name !== "intro" || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const intro = window.name === "intro";
+  window.name = "";
+  if (!intro || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   const DELAY = 500, DOWN = 1170, HOLD = 0, UP = 1170;
   const scrolls = [...document.querySelectorAll(".scroll")].filter((el) => el.scrollHeight > el.clientHeight + 8);
   if (!scrolls.length) return;
@@ -145,34 +148,38 @@ const ICONS = {
 
 /* ---------- canvas ---------- */
 
-// Fits a page of fixed design size into the space left, like "Fit to page".
-// On narrow screens it fits the width and lets the page scroll vertically.
-function Canvas({ width, height, maxScale, children }: { width: number; height: number; maxScale: number; children: ReactNode }) {
-  const boxRef = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(0);
+type Box = { width: number; height: number };
 
-  useEffect(() => {
-    const el = boxRef.current;
+// size of the space left for the report, measured before paint
+function useBox() {
+  const ref = useRef<HTMLDivElement>(null);
+  const [box, setBox] = useState<Box | null>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
     if (!el) return;
-    const ro = new ResizeObserver(([entry]) => {
-      const { width: w, height: h } = entry.contentRect;
-      const fitW = (w - 32) / width;
-      const s = Math.min(maxScale, w < 768 ? fitW : Math.min(fitW, (h - 32) / height));
-      setScale(Math.max(0.2, s));
-    });
+    const ro = new ResizeObserver(([entry]) => setBox({ width: entry.contentRect.width, height: entry.contentRect.height }));
     ro.observe(el);
     return () => ro.disconnect();
-  }, [width, height, maxScale]);
+  }, []);
+  return [ref, box] as const;
+}
 
+// Fits a page of fixed design size into the box, like "Fit to page". On
+// narrow screens it fits the width and lets the page scroll vertically. The
+// scale is worked out on render so a new page never shows at the last one's.
+function Canvas({ box, width, height, maxScale, hidden, children }: Box & { box: Box | null; maxScale: number; hidden: boolean; children: ReactNode }) {
+  let scale = 0;
+  if (box) {
+    const fitW = (box.width - 32) / width;
+    scale = Math.max(0.2, Math.min(maxScale, box.width < 768 ? fitW : Math.min(fitW, (box.height - 32) / height)));
+  }
   return (
-    <div ref={boxRef} className="absolute inset-0 overflow-auto">
-      <div className="flex min-h-full items-start justify-center p-4 md:items-center">
-        <div
-          className="shrink-0 overflow-hidden bg-[#F6F3EE] shadow-[0_2px_8px_rgba(0,0,0,0.12)]"
-          style={{ width: width * scale, height: height * scale, visibility: scale ? "visible" : "hidden" }}
-        >
-          <div style={{ width, height, transform: `scale(${scale})`, transformOrigin: "0 0" }}>{children}</div>
-        </div>
+    <div className={`min-h-full items-start justify-center p-4 md:items-center ${hidden ? "hidden" : "flex"}`}>
+      <div
+        className="shrink-0 overflow-hidden bg-[#F6F3EE] shadow-[0_2px_8px_rgba(0,0,0,0.12)]"
+        style={{ width: width * scale, height: height * scale, visibility: scale ? "visible" : "hidden" }}
+      >
+        <div style={{ width, height, transform: `scale(${scale})`, transformOrigin: "0 0" }}>{children}</div>
       </div>
     </div>
   );
@@ -259,8 +266,8 @@ export default function PbiWorkspace({ viewer, boot }: { viewer: string | null; 
   const [filters, setFilters] = useState<PageFilters>(boot?.defaults ?? LOCKED_FILTERS);
   const [pagesOpen, setPagesOpen] = useState(true);
   const [sampleOpen, setSampleOpen] = useState(false);
-  // pages whose intro animation has already played this visit
-  const [introSeen, setIntroSeen] = useState<PageId[]>([]);
+  // pages opened so far; each keeps its own frame so switching back is instant
+  const [visited, setVisited] = useState<PageId[]>(["command"]);
   const [filtersOpen, setFiltersOpen] = useState(true); // docked pane, lg and up
   const [filtersSheet, setFiltersSheet] = useState(false); // overlay, below lg
 
@@ -273,15 +280,20 @@ export default function PbiWorkspace({ viewer, boot }: { viewer: string | null; 
   // last page rendered for each tab, shown while a new one loads
   const [shown, setShown] = useState<Record<PageId, string> | null>(boot?.html ?? null);
 
-  const request = { page, filters: filters[page] } as ReportRequest;
-  const key = keyOf(request);
-  const html = cache.get(key) ?? shown?.[page] ?? null;
+  const [boxRef, box] = useBox();
+  const keyFor = (id: PageId) => keyOf({ page: id, filters: filters[id] } as ReportRequest);
+  const htmlFor = (id: PageId) => cache.get(keyFor(id)) ?? shown?.[id] ?? null;
+  const key = keyFor(page);
   const loading = !locked && !cache.has(key);
+  // requests on their way, so a cache update doesn't send them again
+  const pending = useRef(new Set<string>());
 
   useEffect(() => {
-    if (locked || cache.has(key)) return;
+    if (locked || cache.has(key) || pending.current.has(key)) return;
+    pending.current.add(key);
     let live = true;
     renderReportPage(JSON.parse(key)).then((next) => {
+      pending.current.delete(key);
       // null means the server rejected the request; keep the last render
       if (next === null) return;
       setCache((m) => new Map(m).set(key, next));
@@ -293,7 +305,6 @@ export default function PbiWorkspace({ viewer, boot }: { viewer: string | null; 
   }, [key, locked, cache]);
 
   const current = PAGES.find((p) => p.id === page)!;
-  const size = SIZES[page];
   const defs = filterDefs(page, boot);
   const values = filters[page] as Record<string, string>;
   const defaults = (boot?.defaults ?? LOCKED_FILTERS)[page] as Record<string, string>;
@@ -307,7 +318,10 @@ export default function PbiWorkspace({ viewer, boot }: { viewer: string | null; 
       type="button"
       role="tab"
       aria-selected={p.id === page}
-      onClick={() => setPage(p.id)}
+      onClick={() => {
+        setPage(p.id);
+        setVisited((v) => (v.includes(p.id) ? v : [...v, p.id]));
+      }}
       className={
         compact
           ? `shrink-0 whitespace-nowrap border-b-[3px] px-3 py-2 text-xs ${
@@ -401,31 +415,37 @@ export default function PbiWorkspace({ viewer, boot }: { viewer: string | null; 
           </div>
           <div className="relative min-h-0 flex-1 bg-[#EAEAEA]">
             {loading && <div className="absolute inset-x-0 top-0 z-10 h-0.5 animate-pulse bg-[#F2C811]" />}
-            <Canvas {...size}>
-              {html ? (
-                <iframe
-                  title={`${current.label} (mock data)`}
-                  srcDoc={srcDoc(html)}
-                  // renaming doesn't reload the frame, so the intro only runs on a page's first load
-                  name={INTRO_PAGES.includes(page) && !introSeen.includes(page) ? "intro" : ""}
-                  onLoad={() => setIntroSeen((s) => (s.includes(page) ? s : [...s, page]))}
-                  // scripts for the intro only; no same-origin access to the site
-                  sandbox="allow-scripts"
-                  style={{
-                    width: size.width,
-                    height: size.height,
-                    border: 0,
-                    display: "block",
-                    opacity: loading ? 0.55 : 1,
-                    transition: "opacity 150ms",
-                  }}
-                />
-              ) : (
-                <div className="h-full w-full blur-[6px]">
-                  <ReportSkeleton />
-                </div>
-              )}
-            </Canvas>
+            <div ref={boxRef} className="absolute inset-0 overflow-auto">
+              {PAGES.filter((p) => visited.includes(p.id)).map((p) => {
+                const pageHtml = htmlFor(p.id);
+                return (
+                  <Canvas key={p.id} box={box} {...SIZES[p.id]} hidden={p.id !== page}>
+                    {pageHtml ? (
+                      <iframe
+                        title={`${p.label} (mock data)`}
+                        srcDoc={srcDoc(pageHtml)}
+                        // the frame clears this once the intro has run
+                        name={INTRO_PAGES.includes(p.id) ? "intro" : undefined}
+                        // scripts for the intro only; no same-origin access to the site
+                        sandbox="allow-scripts"
+                        style={{
+                          width: SIZES[p.id].width,
+                          height: SIZES[p.id].height,
+                          border: 0,
+                          display: "block",
+                          opacity: p.id === page && loading ? 0.55 : 1,
+                          transition: "opacity 150ms",
+                        }}
+                      />
+                    ) : (
+                      <div className="h-full w-full blur-[6px]">
+                        <ReportSkeleton />
+                      </div>
+                    )}
+                  </Canvas>
+                );
+              })}
+            </div>
           </div>
         </div>
 
