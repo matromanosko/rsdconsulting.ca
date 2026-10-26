@@ -48,12 +48,6 @@ export default function Footer() {
           <p className="text-xs text-white/50">
             © {year} {BRAND}. Independent consultancy, not affiliated with ezFocus or Microsoft.
           </p>
-          <p className="flex items-center gap-2 text-sm font-bold text-accent">
-            <svg viewBox="3 0 18 18" className="h-6 w-6 shrink-0" fill="currentColor" aria-hidden>
-              <path d="M12 2l1.6 3.2 1.9-.9-.6 4.3 2.6-2.4.6 1.4 2.4-.4-.9 2.7 1.4.7-4.6 3.8.5 1.6-4.4-.6h-1l-4.4.6.5-1.6L3 10.6l1.4-.7-.9-2.7 2.4.4.6-1.4 2.6 2.4-.6-4.3 1.9.9z" />
-            </svg>
-            <span>Proudly Canadian, based in MTL</span>
-          </p>
         </div>
         <svg
           viewBox="0 0 24 24"
@@ -65,6 +59,12 @@ export default function Footer() {
           <rect x="16.5" y="3" width="4.5" height="18" rx="1" fill="var(--accent)" />
         </svg>
       </div>
+      <p className="mt-4 flex items-center gap-2 text-sm font-bold text-accent">
+        <svg viewBox="3 0 18 18" className="h-6 w-6 shrink-0" fill="currentColor" aria-hidden>
+          <path d="M12 2l1.6 3.2 1.9-.9-.6 4.3 2.6-2.4.6 1.4 2.4-.4-.9 2.7 1.4.7-4.6 3.8.5 1.6-4.4-.6h-1l-4.4.6.5-1.6L3 10.6l1.4-.7-.9-2.7 2.4.4.6-1.4 2.6 2.4-.6-4.3 1.9.9z" />
+        </svg>
+        <span>Proudly Canadian, based in MTL</span>
+      </p>
     </footer>
   );
 }
