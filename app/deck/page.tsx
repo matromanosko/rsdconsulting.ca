@@ -90,7 +90,7 @@ export default function Deck() {
               on their own, so your team stops rebuilding them every month.
             </p>
             <p className="text-sm">
-              <span className="rounded-full bg-ink px-5 py-2.5 font-medium text-white">hello@matromano.com</span>
+              <span className="rounded-full bg-ink px-5 py-2.5 font-medium text-white">mat@rsdconsulting.ca</span>
             </p>
           </div>
           <HeroCards />
@@ -250,7 +250,7 @@ export default function Deck() {
           </div>
           <div className="flex flex-col gap-2 text-sm">
             <p className="text-white/60">Book a call</p>
-            <p className="font-display text-xl">hello@matromano.com</p>
+            <p className="font-display text-xl">mat@rsdconsulting.ca</p>
             <p className="text-white/60">matromano.com/contact</p>
           </div>
         </div>

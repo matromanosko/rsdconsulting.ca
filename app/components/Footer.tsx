@@ -26,8 +26,8 @@ export default function Footer() {
             <div>
               <dt className="text-xs text-white/60">Email</dt>
               <dd className="mt-1">
-                <a href="mailto:mathis.skobinsky@gmail.com" className="hover:underline">
-                  mathis.skobinsky@gmail.com
+                <a href="mailto:mat@rsdconsulting.ca" className="hover:underline">
+                  mat@rsdconsulting.ca
                 </a>
               </dd>
             </div>
