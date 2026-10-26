@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# machine-specific (forces macOS x64 binaries; would break Linux builds)
+.npmrc
+
+# local Claude Code settings
+.claude/settings.local.json
