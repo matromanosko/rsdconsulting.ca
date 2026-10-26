@@ -4,6 +4,8 @@ import { cookies } from "next/headers";
 import { ACCESS_COOKIE, DATA_SOURCES, type GateState } from "./gate";
 import type { ReportRequest } from "./report";
 import { isValidRequest, renderReport } from "@/app/lib/dashboards/render";
+import { getLang } from "@/app/lib/i18n/server";
+import { dict } from "@/app/lib/i18n/dictionaries";
 
 // Free sample requests from the home page and /examples. A valid lead is
 // POSTed as JSON to LEADS_WEBHOOK_URL (Zapier, Make, Formspree, Slack…) when
@@ -23,10 +25,11 @@ export async function requestSample(_prev: GateState, formData: FormData): Promi
     submittedAt: new Date().toISOString(),
   };
 
-  if (!lead.name || !lead.company) return { error: "Please fill in your name and company." };
-  if (!EMAIL.test(lead.email)) return { error: "Please enter a valid email address." };
-  if (lead.phone.replace(/\D/g, "").length < 7) return { error: "Please enter a valid phone number." };
-  if (!lead.sources.length) return { error: "Tell us where your data comes from." };
+  const errors = dict(await getLang()).sample.errors;
+  if (!lead.name || !lead.company) return { error: errors.nameCompany };
+  if (!EMAIL.test(lead.email)) return { error: errors.email };
+  if (lead.phone.replace(/\D/g, "").length < 7) return { error: errors.phone };
+  if (!lead.sources.length) return { error: errors.sources };
 
   const webhook = process.env.LEADS_WEBHOOK_URL;
   if (webhook) {
@@ -58,5 +61,5 @@ export async function requestSample(_prev: GateState, formData: FormData): Promi
 // Re-renders one report page with new filter values.
 export async function renderReportPage(req: ReportRequest): Promise<string | null> {
   if (!isValidRequest(req)) return null;
-  return renderReport(req);
+  return renderReport(req, await getLang());
 }

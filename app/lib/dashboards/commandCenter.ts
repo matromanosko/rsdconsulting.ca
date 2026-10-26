@@ -2,8 +2,10 @@
 // 1280 x 720). Section numbers match the measure so the two can be read side
 // by side. All interactions are CSS-only radios, exactly as in Power BI.
 
-import { FIRST_YEAR, LISTING_LABELS, LISTING_SHORT, MAX_YEAR, NO_FILTER, OUR_AGENT, Row, RowFilter, getRows, matches } from "./data";
-import { N, dec, divide, dround, esc, groupBy, int, mdy, ordinal, parseInsertion, pct, spct, sum } from "./format";
+import type { Lang } from "@/app/lib/i18n/config";
+import { FIRST_YEAR, MAX_YEAR, NO_FILTER, OUR_AGENT, Row, RowFilter, getRows, matches } from "./data";
+import { N, cssNum, divide, dround, esc, groupBy, int, mdy, money, ordinal, parseInsertion, pct, short, spct, sum, withLang } from "./format";
+import { dash, listingLabels, listingShort, term } from "./i18n";
 
 // ------------------------------- 0 · CONFIG ---------------------------------
 const FONT = "Segoe UI,Arial,sans-serif";
@@ -40,11 +42,7 @@ type Mt = (typeof METRICS)[number];
 
 const varColor = (v: N) => (v === null ? FAINT : v >= 0 ? POS : NEG);
 const varArrow = (v: N) => (v === null ? "&middot;" : v >= 0 ? "&#9650;" : "&#9660;");
-const varText = (v: N) => (v === null ? "n/a" : spct(v));
-
-function dimOf(r: Row, dm: Dm) {
-  return dm === "A" ? r.country : dm === "B" ? r.category : LISTING_LABELS[r.type];
-}
+const varText = (v: N, na: string) => (v === null ? na : spct(v));
 
 function ramp(rank: number, cnt: number) {
   const t = (rank - 1) / Math.max(cnt - 1, 1);
@@ -54,7 +52,19 @@ function ramp(rank: number, cnt: number) {
   return { clr: `hsl(${dround(hue)},${dround(sat)}%,${dround(lgt)}%)`, lgt };
 }
 
-export function buildCommandCenter(filter: RowFilter = NO_FILTER): string {
+export function buildCommandCenter(filter: RowFilter = NO_FILTER, lang: Lang = "en"): string {
+  return withLang(lang, () => build(filter, lang));
+}
+
+function build(filter: RowFilter, lang: Lang): string {
+  const t = dash(lang);
+  const tc = t.command;
+  const T = (v: string) => term(lang, v);
+  const labels = listingLabels(lang);
+  const shortType = listingShort(lang);
+  // members are named in the report language
+  const dimOf = (r: Row, dm: Dm) => (dm === "A" ? T(r.country) : dm === "B" ? T(r.category) : labels[r.type]);
+
   // slicers apply to the whole market, so ranks stay like for like
   const all = getRows().filter(matches(filter));
   const rows = all.filter((r) => r.agent === OUR_AGENT);
@@ -161,12 +171,12 @@ export function buildCommandCenter(filter: RowFilter = NO_FILTER): string {
   const cagr10 = FY > 0 ? Math.pow(CY / FY, 1 / years10) - 1 : null;
 
   const winStart = (w: number) => (MAX_YEAR - w > FIRST_YEAR ? MAX_YEAR - w : FIRST_YEAR);
-  const rangeLbl = WINS.map((w) => `<span class='wlab l${w}'>${winStart(w)}&ndash;${MAX_YEAR} + YTD</span>`).join("");
+  const rangeLbl = WINS.map((w) => `<span class='wlab l${w}'>${winStart(w)}&ndash;${MAX_YEAR} + ${t.ytd}</span>`).join("");
 
   // ------------------- 3 · TREND PANELS (3 dims x 3 metrics) ------------------
   const metricOf = (c: Cell, mt: Mt) => (mt === "V" ? c.A : mt === "S" ? c.N : c.D);
   const secOf = (c: Cell, mt: Mt) => (mt === "V" ? c.N : c.A);
-  const csText = (v: number) => (v >= 1000000 ? dec(v / 1000000, 1) + "M cs" : dec(v / 1000, 0) + "K cs");
+  const csText = (v: number) => (v >= 1000000 ? short(v, "M", 1) : short(v, "K", 0)) + " " + t.cs;
 
   let panels = "";
   for (const dm of DIMS) {
@@ -174,7 +184,6 @@ export function buildCommandCenter(filter: RowFilter = NO_FILTER): string {
     const cnt = rk.length;
     for (const mt of METRICS) {
       const isD = mt === "D";
-      const pfx = isD ? "$" : "";
       const yrs = YEARS.map((y) => ({ y, tot: metricOf(yrTot(dm, y), mt) }));
       const winMax = WINS.map((w) => {
         const st = winStart(w);
@@ -213,10 +222,10 @@ export function buildCommandCenter(filter: RowFilter = NO_FILTER): string {
           mt === "S"
             ? int(yt)
             : yt >= 1000000
-              ? pfx + dec(yt / 1000000, 2) + "M"
+              ? short(yt, "M", 2, isD)
               : yt >= 1000
-                ? pfx + dec(yt / 1000, 0) + "K"
-                : pfx + int(yt);
+                ? short(yt, "K", 0, isD)
+                : isD ? money(yt) : int(yt);
         const pyt = ry
           ? mt === "V" ? RYQLY : mt === "S" ? RYKLY : RYVLY
           : (yrs.find((x) => x.y === y - 1)?.tot ?? null);
@@ -232,8 +241,8 @@ export function buildCommandCenter(filter: RowFilter = NO_FILTER): string {
             const ink = lgt < 52 ? "#FFFFFF" : "#2B2024";
             const shr = divide(m.val, yt) ?? 0;
             const sh = shr * h10;
-            const svt = mt === "V" ? int(m.sec) + " SKU" : csText(m.sec);
-            const at = pfx + int(m.val);
+            const svt = mt === "V" ? int(m.sec) + " " + tc.sku(m.sec) : csText(m.sec);
+            const at = isD ? money(m.val) : int(m.val);
             const txt =
               `<div class='sgi${sh >= 14 ? "" : " hid"}'>` +
               `<div>${pct(shr, 0)}</div>` +
@@ -254,17 +263,17 @@ export function buildCommandCenter(filter: RowFilter = NO_FILTER): string {
         const othList = [...tail]
           .sort((a, b) => b.val - a.val)
           .slice(0, N_TIP)
-          .map((m) => `${esc(m.dim)}   ${pfx}${int(m.val)}   ${pct(divide(m.val, yt))}`)
+          .map((m) => `${esc(m.dim)}   ${isD ? money(m.val) : int(m.val)}   ${pct(divide(m.val, yt))}`)
           .join("&#10;");
-        const othMore = othN > N_TIP ? `&#10;+${int(othN - N_TIP)} more` : "";
+        const othMore = othN > N_TIP ? `&#10;${tc.more(int(othN - N_TIP))}` : "";
         const othTip =
-          `Other &middot; ${int(othN)} members &middot; ${pfx}${int(othA)} &middot; ${pct(othShr)}&#10;&#10;` +
+          `${tc.other} &middot; ${int(othN)} ${tc.members} &middot; ${isD ? money(othA) : int(othA)} &middot; ${pct(othShr)}&#10;&#10;` +
           othList +
           othMore;
         const othTxt =
           `<div class='sgi${othSh >= 14 ? "" : " hid"}'>` +
           `<div>${pct(othShr, 0)}</div>` +
-          (othSh >= 32 || othSh < 14 ? `<div class='sgs'>${int(othN)} members</div>` : "") +
+          (othSh >= 32 || othSh < 14 ? `<div class='sgs'>${int(othN)} ${tc.members}</div>` : "") +
           "</div>";
         const othBlk = hasOth
           ? `<div class='sgm oth cap8' data-t='${othTip}' style='flex:${Math.max(dround(othA), 1)} 0 0;background:${CO};color:#FFFFFF;'>${othTxt}</div>`
@@ -275,7 +284,7 @@ export function buildCommandCenter(filter: RowFilter = NO_FILTER): string {
           `<div class='clab'>${lbl}</div>` +
           `<div class='cvar' style='color:${vcl};'>${vtx}</div>` +
           `<div class='stk' style='${hvars}'>${segs}${othBlk}</div>` +
-          `<div class='cyr'>${ry ? "RY TY" : y}</div>` +
+          `<div class='cyr'>${ry ? t.ryTy : y}</div>` +
           "</div>";
       }
       panels += `<div class='mqp p${dm}${mt}'><div class='wrow'>${cols}</div></div>`;
@@ -286,10 +295,10 @@ export function buildCommandCenter(filter: RowFilter = NO_FILTER): string {
   const mixHead =
     "<div style='display:flex;align-items:center;gap:6px;padding:0 6px 3px 0;'>" +
     "<div style='width:88px;'></div><div style='flex:1;'></div>" +
-    "<div class='skh' style='width:58px;text-align:right;'>Volume</div>" +
-    "<div class='skh' style='width:36px;text-align:right;'>SKUs</div>" +
-    "<div class='skh' style='width:68px;text-align:right;'>Sales $</div>" +
-    "<div class='skh' style='width:38px;text-align:right;'>Share</div>" +
+    `<div class='skh' style='width:58px;text-align:right;'>${tc.volume}</div>` +
+    `<div class='skh' style='width:36px;text-align:right;'>${t.skus}</div>` +
+    `<div class='skh' style='width:68px;text-align:right;'>${t.sales}</div>` +
+    `<div class='skh' style='width:38px;text-align:right;'>${tc.share}</div>` +
     "</div>";
   const mixLists = DIMS.map((dm) => {
     const t = ryMix.filter((m) => m.dm === dm).sort((a, b) => b.V - a.V || b.Q - a.Q);
@@ -299,7 +308,7 @@ export function buildCommandCenter(filter: RowFilter = NO_FILTER): string {
     const body = t
       .map((m) => {
         const q = m.Q;
-        const qt = q >= 1000000 ? dec(q / 1000000, 1) + "M" : q >= 10000 ? dec(q / 1000, 1) + "K" : int(q);
+        const qt = q >= 1000000 ? short(q, "M", 1) : q >= 10000 ? short(q, "K", 1) : int(q);
         const rank = dimRank[dm].get(m.dim)!;
         const { clr } = ramp(rank, cnt);
         const tail = rank > N_TOP ? "<span class='mxo'>&middot;</span>" : "";
@@ -307,10 +316,10 @@ export function buildCommandCenter(filter: RowFilter = NO_FILTER): string {
           "<div class='mxr'>" +
           `<div class='mxn'><span class='mxs' style='background:${clr};'></span>` +
           `<span class='mxt'>${esc(m.dim)}</span>${tail}</div>` +
-          `<div class='mxb'><div class='mxf' style='width:${dec((divide(m.V, mx) ?? 0) * 100, 1, false)}%;background:${clr};'></div></div>` +
+          `<div class='mxb'><div class='mxf' style='width:${cssNum((divide(m.V, mx) ?? 0) * 100)}%;background:${clr};'></div></div>` +
           `<div class='num mxv'>${qt}</div>` +
           `<div class='num mxk'>${int(m.K)}</div>` +
-          `<div class='num mxd'>$${int(m.V)}</div>` +
+          `<div class='num mxd'>${money(m.V)}</div>` +
           `<div class='num mxp'>${pct(divide(m.V, tot) ?? 0)}</div>` +
           "</div>"
         );
@@ -345,7 +354,7 @@ export function buildCommandCenter(filter: RowFilter = NO_FILTER): string {
       .sort((a, b) => b.s[g - 1]! - a.s[g - 1]! || b.r.d - a.r.d)
       .slice(0, N_SKU);
     if (!top.length) {
-      emptyRows += `<tr class='skr sk${g}'><td colspan='4' class='skempty'>No SKUs match this view.</td></tr>`;
+      emptyRows += `<tr class='skr sk${g}'><td colspan='4' class='skempty'>${tc.noSkus}</td></tr>`;
       continue;
     }
     top.forEach((x, i) => {
@@ -354,8 +363,8 @@ export function buildCommandCenter(filter: RowFilter = NO_FILTER): string {
         `<tr class='skr sk${g}'>` +
         `<td class='skc skn'><span class='num skx'>${i + 1}</span></td>` +
         `<td class='skc skm'><div class='sknm'>${esc(x.r.desc)}</div>${sub}</td>` +
-        `<td class='skc sks'><span class='num'>$${int(x.r.d)}</span></td>` +
-        `<td class='skc skv'><span class='num' style='color:${varColor(x.v)};'>${varArrow(x.v)} ${varText(x.v)}</span></td>` +
+        `<td class='skc sks'><span class='num'>${money(x.r.d)}</span></td>` +
+        `<td class='skc skv'><span class='num' style='color:${varColor(x.v)};'>${varArrow(x.v)} ${varText(x.v, t.na)}</span></td>` +
         "</tr>";
     });
   }
@@ -363,8 +372,8 @@ export function buildCommandCenter(filter: RowFilter = NO_FILTER): string {
     "<table class='skt'>" +
     "<colgroup><col style='width:18px;'><col><col style='width:96px;'><col style='width:62px;'></colgroup>" +
     "<thead><tr><th class='skh'></th><th class='skh' style='text-align:left;'></th>" +
-    "<th class='skh' style='text-align:right;padding-bottom:4px;'>Sales $</th>" +
-    "<th class='skh' style='text-align:right;padding:0 0 4px 6px;'>vs LY</th></tr></thead>" +
+    `<th class='skh' style='text-align:right;padding-bottom:4px;'>${t.sales}</th>` +
+    `<th class='skh' style='text-align:right;padding:0 0 4px 6px;'>${t.vsLy}</th></tr></thead>` +
     `<tbody>${skuRows}${emptyRows}</tbody></table>`;
 
   // -------------------------- 6 · SEGMENT BREAKDOWN ---------------------------
@@ -376,13 +385,13 @@ export function buildCommandCenter(filter: RowFilter = NO_FILTER): string {
       `<td class='sgc sgn${cls === "sgC" ? " sgnc" : ""}'><span class='${cls === "sgC" ? "sgcl" : "sgtl"}'>${esc(name)}</span></td>` +
       `<td class='sgc sgk'><span class='num'>${int(skus)}</span></td>` +
       `<td class='sgc sgv'><span class='num'>${int(vol)}</span></td>` +
-      `<td class='sgc sgd'><span class='num' style='color:${varColor(vv)};'>${varArrow(vv)}${varText(vv)}</span></td>` +
-      `<td class='sgc sgs'><span class='num'>$${int(sal)}</span></td>` +
-      `<td class='sgc sgd2'><span class='num' style='color:${varColor(sv)};'>${varArrow(sv)}${varText(sv)}</span></td>` +
+      `<td class='sgc sgd'><span class='num' style='color:${varColor(vv)};'>${varArrow(vv)}${varText(vv, t.na)}</span></td>` +
+      `<td class='sgc sgs'><span class='num'>${money(sal)}</span></td>` +
+      `<td class='sgc sgd2'><span class='num' style='color:${varColor(sv)};'>${varArrow(sv)}${varText(sv, t.na)}</span></td>` +
       "</tr>"
     );
   };
-  const segBlocks = [...groupBy(rows, (r) => r.segment).entries()]
+  const segBlocks = [...groupBy(rows, (r) => T(r.segment)).entries()]
     .map(([seg, rs]) => ({ seg, rs, S: sum(rs, (r) => r.d), SLY: sum(rs, (r) => r.dL) }))
     .filter((x) => x.S > 0 || x.SLY > 0)
     .sort((a, b) => b.S - a.S)
@@ -395,9 +404,9 @@ export function buildCommandCenter(filter: RowFilter = NO_FILTER): string {
       const typeRows = TYPE_LIST.map((t) => {
         const tr = rs.filter((r) => r.type === t);
         if (!tr.length) return "";
-        return segRow("sgT", LISTING_SHORT[t], new Set(tr.map((r) => r.code)).size, sum(tr, (r) => r.ry), sum(tr, (r) => r.ryL), sum(tr, (r) => r.d), sum(tr, (r) => r.dL));
+        return segRow("sgT", shortType[t], new Set(tr.map((r) => r.code)).size, sum(tr, (r) => r.ry), sum(tr, (r) => r.ryL), sum(tr, (r) => r.d), sum(tr, (r) => r.dL));
       }).join("");
-      const catRows = [...groupBy(rs, (r) => r.category).entries()]
+      const catRows = [...groupBy(rs, (r) => T(r.category)).entries()]
         .map(([c, cr]) => ({ c, cr, sal: sum(cr, (r) => r.d) }))
         .sort((a, b) => b.sal - a.sal)
         .slice(0, N_CAT)
@@ -409,20 +418,20 @@ export function buildCommandCenter(filter: RowFilter = NO_FILTER): string {
         "<table class='skt'>" +
         "<colgroup><col style='width:26%;'><col style='width:10%;'><col style='width:16%;'><col style='width:12%;'><col style='width:22%;'><col style='width:14%;'></colgroup>" +
         "<thead><tr>" +
-        "<th class='skh' style='text-align:left;padding-bottom:4px;'><span class='sgclab'>Category</span></th>" +
-        "<th class='skh' style='text-align:right;padding-bottom:4px;'>SKUs</th>" +
-        "<th class='skh' style='text-align:right;padding-bottom:4px;'>Vol</th>" +
+        `<th class='skh' style='text-align:left;padding-bottom:4px;'><span class='sgclab'>${tc.category}</span></th>` +
+        `<th class='skh' style='text-align:right;padding-bottom:4px;'>${t.skus}</th>` +
+        `<th class='skh' style='text-align:right;padding-bottom:4px;'>${tc.vol}</th>` +
         "<th class='skh' style='text-align:right;padding-bottom:4px;'>&Delta;</th>" +
-        "<th class='skh' style='text-align:right;padding-bottom:4px;'>Sales $</th>" +
+        `<th class='skh' style='text-align:right;padding-bottom:4px;'>${t.sales}</th>` +
         "<th class='skh' style='text-align:right;padding-bottom:4px;'>&Delta;</th>" +
         "</tr></thead><tbody>" +
         "<tr class='sgtot'>" +
-        `<td class='sgn'><span class='num'>Total</span></td>` +
+        `<td class='sgn'><span class='num'>${tc.total}</span></td>` +
         `<td class='sgk'><span class='num'>${int(new Set(rs.map((r) => r.code)).size)}</span></td>` +
         `<td class='sgv'><span class='num'>${int(volTY)}</span></td>` +
-        `<td class='sgd'><span class='num' style='color:${varColor(vv)};'>${varArrow(vv)}${varText(vv)}</span></td>` +
-        `<td class='sgs'><span class='num'>$${int(S)}</span></td>` +
-        `<td class='sgd2'><span class='num' style='color:${varColor(sv)};'>${varArrow(sv)}${varText(sv)}</span></td>` +
+        `<td class='sgd'><span class='num' style='color:${varColor(vv)};'>${varArrow(vv)}${varText(vv, t.na)}</span></td>` +
+        `<td class='sgs'><span class='num'>${money(S)}</span></td>` +
+        `<td class='sgd2'><span class='num' style='color:${varColor(sv)};'>${varArrow(sv)}${varText(sv, t.na)}</span></td>` +
         "</tr>" +
         typeRows +
         catRows +
@@ -574,33 +583,33 @@ export function buildCommandCenter(filter: RowFilter = NO_FILTER): string {
   // ------------------------------ 8 · HEADER + KPI ----------------------------
   const header =
     "<div style='display:flex;justify-content:space-between;align-items:center;gap:10px;height:40px;'>" +
-    `<div style='font:800 19px ${F};color:#2B2024;letter-spacing:.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;'>${esc(OUR_AGENT)} portfolio</div>` +
+    `<div style='font:800 19px ${F};color:#2B2024;letter-spacing:.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;'>${esc(tc.portfolio(OUR_AGENT))}</div>` +
     // demo: the growth window is fixed at 10 yrs (radio stays checked, no pills)
     "</div>";
 
   const gCard = (w: number, g: number) => {
     const c = g >= 0 ? POS : NEG;
-    return `<div class='kpi gCard g${w}' style='border-left:4px solid ${c};'><div class='eyebrow'>Growth &middot; ${w} yrs</div><div class='kval num' style='color:${c};'>${g >= 0 ? "&#9650; " : "&#9660; "}${pct(Math.abs(g))}</div></div>`;
+    return `<div class='kpi gCard g${w}' style='border-left:4px solid ${c};'><div class='eyebrow'>${tc.growth(w)}</div><div class='kval num' style='color:${c};'>${g >= 0 ? "&#9650; " : "&#9660; "}${pct(Math.abs(g))}</div></div>`;
   };
   const cCard = (w: number, v: N) =>
-    `<div class='kpi cCard c${w}' style='border-left:4px solid #C48A93;'><div class='eyebrow'>CAGR &middot; ${w} yrs</div><div class='kval num'>${pct(v)}</div></div>`;
+    `<div class='kpi cCard c${w}' style='border-left:4px solid #C48A93;'><div class='eyebrow'>${tc.cagr(w)}</div><div class='kval num'>${pct(v)}</div></div>`;
   const kpiRow =
     "<div style='display:flex;gap:8px;height:66px;margin-top:8px;'>" +
-    "<div class='kpi' style='border-left:4px solid #2B2024;'><div class='eyebrow'>Sales $ &middot; RY TY</div>" +
-    `<div class='kval num'>$${int(TY)}</div>` +
-    `<div class='kvar num' style='color:${varColor(VP)};'>${varArrow(VP)} ${varText(VP)}</div></div>` +
-    "<div class='kpi' style='border-left:4px solid #7A1F2E;'><div class='eyebrow'>Volume &middot; RY TY</div>" +
+    `<div class='kpi' style='border-left:4px solid #2B2024;'><div class='eyebrow'>${tc.salesRyTy}</div>` +
+    `<div class='kval num'>${money(TY)}</div>` +
+    `<div class='kvar num' style='color:${varColor(VP)};'>${varArrow(VP)} ${varText(VP, t.na)}</div></div>` +
+    `<div class='kpi' style='border-left:4px solid #7A1F2E;'><div class='eyebrow'>${tc.volumeRyTy}</div>` +
     `<div class='kval num'>${int(TYcs)}</div>` +
-    `<div class='kvar num' style='color:${varColor(VPcs)};'>${varArrow(VPcs)} ${varText(VPcs)}</div></div>` +
+    `<div class='kvar num' style='color:${varColor(VPcs)};'>${varArrow(VPcs)} ${varText(VPcs, t.na)}</div></div>` +
     gCard(3, growth3) +
     gCard(5, growth5) +
     gCard(10, growth10) +
     cCard(3, cagr3) +
     cCard(5, cagr5) +
     cCard(10, cagr10) +
-    `<div class='kpi' style='border-left:4px solid #9C9188;'><div class='eyebrow'>Active SKUs</div><div class='kval num'>${int(totalSKUs)}</div></div>` +
-    `<div class='kpi' style='border-left:4px solid #9C9188;'><div class='eyebrow'>Suppliers</div><div class='kval num'>${int(activeSupps)}</div></div>` +
-    `<div class='kpi' style='border-left:4px solid #9C9188;'><div class='eyebrow'>Agency rank</div><div class='kval num'>${int(agentRank)}${ordinal(agentRank)}</div></div>` +
+    `<div class='kpi' style='border-left:4px solid #9C9188;'><div class='eyebrow'>${tc.activeSkus}</div><div class='kval num'>${int(totalSKUs)}</div></div>` +
+    `<div class='kpi' style='border-left:4px solid #9C9188;'><div class='eyebrow'>${tc.suppliers}</div><div class='kval num'>${int(activeSupps)}</div></div>` +
+    `<div class='kpi' style='border-left:4px solid #9C9188;'><div class='eyebrow'>${tc.agencyRank}</div><div class='kval num'>${int(agentRank)}${ordinal(agentRank)}</div></div>` +
     "</div>";
 
   // ------------------------------- 9 · BODY -----------------------------------
@@ -609,17 +618,17 @@ export function buildCommandCenter(filter: RowFilter = NO_FILTER): string {
     "<div class='card' style='height:100%;display:flex;flex-direction:column;'>" +
     "<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;'>" +
     "<div style='display:flex;align-items:center;gap:6px;min-width:0;'>" +
-    "<div class='seg'><label for='mqA'>Country</label><label for='mqB'>Category</label><label for='mqC'>Listing type</label></div>" +
+    `<div class='seg'>${DIMS.map((d, i) => `<label for='mq${d}'>${tc.dims[i]}</label>`).join("")}</div>` +
     // demo: stack depth is fixed at Top 8 + Other (radio stays checked, no pills)
     "</div>" +
     "<div style='display:flex;align-items:center;gap:8px;'>" +
     `<span class='eyebrow'>${rangeLbl}</span>` +
-    "<div class='seg mvbar'><label for='mvV'>9L cases</label><label for='mvS'># of SKUs</label><label for='mvD'>Sales $</label></div>" +
+    `<div class='seg mvbar'>${METRICS.map((m, i) => `<label for='mv${m}'>${tc.metrics[i]}</label>`).join("")}</div>` +
     "</div>" +
     "</div>" +
     panels +
     "<div style='margin-top:auto;padding-top:8px;border-top:1px solid #F1ECE5;'>" +
-    "<div class='eyebrow' style='margin-bottom:3px;'>Portfolio mix &middot; YTD TY &middot; all members</div>" +
+    `<div class='eyebrow' style='margin-bottom:3px;'>${tc.mix}</div>` +
     mixHead +
     `<div class='scroll' style='height:${MIX_H}px;flex:none;'>${mixLists}</div>` +
     "</div>" +
@@ -630,17 +639,14 @@ export function buildCommandCenter(filter: RowFilter = NO_FILTER): string {
     "<div style='flex:1 1 0;min-width:0;height:560px;display:flex;flex-direction:column;gap:8px;'>" +
     "<div class='card' style='height:236px;display:flex;flex-direction:column;overflow:hidden;'>" +
     "<div class='seg skbar' style='margin-bottom:8px;width:100%;flex-wrap:wrap;justify-content:center;gap:4px;row-gap:3px;'>" +
-    "<label for='sk1'>Top sellers</label><label for='sk2' title='New specialty listings'>New specialty</label>" +
-    "<label for='sk3' title='New batch-order specialty listings'>New batch-order</label>" +
-    "<label for='sk4' title='Growers among regular and specialty listings'>Growers</label>" +
-    "<label for='sk5' title='Decliners among regular and specialty listings'>Decliners</label>" +
+    tc.presets.map(([label, title], i) => `<label for='sk${i + 1}'${title ? ` title='${title}'` : ""}>${label}</label>`).join("") +
     "</div>" +
     `<div class='scroll'>${skuTable}</div>` +
     "</div>" +
     "<div class='card' style='height:316px;display:flex;flex-direction:column;overflow:hidden;'>" +
     "<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;flex:none;'>" +
-    "<span class='eyebrow'>Segments</span>" +
-    "<div class='seg'><label for='sgT'>Listing type</label><label for='sgC'>Categories</label></div>" +
+    `<span class='eyebrow'>${tc.segments}</span>` +
+    `<div class='seg'><label for='sgT'>${tc.byType}</label><label for='sgC'>${tc.byCategory}</label></div>` +
     "</div>" +
     `<div class='scroll'>${segBlocks}</div>` +
     "</div>" +

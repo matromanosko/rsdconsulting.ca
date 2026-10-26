@@ -3,6 +3,7 @@
 import { FormEvent, ReactNode, startTransition, useActionState, useEffect, useState } from "react";
 import { requestSample } from "@/app/examples/actions";
 import { DATA_SOURCES, type GateState } from "@/app/examples/gate";
+import { useDict } from "@/app/lib/i18n/LangProvider";
 
 // Fluent-style "free sample" dialog, opened from the home page and the
 // /examples top bar. Submitting runs the Server Action, which forwards the
@@ -28,6 +29,7 @@ function Field({ id, label, ...props }: { id: string; label: string } & React.In
 }
 
 export function FreeSampleDialog({ onClose }: { onClose: () => void }) {
+  const t = useDict().sample;
   const [state, dispatch, pending] = useActionState<GateState, FormData>(requestSample, {});
   const [sources, setSources] = useState<string[]>([]);
   const [localError, setLocalError] = useState("");
@@ -47,7 +49,7 @@ export function FreeSampleDialog({ onClose }: { onClose: () => void }) {
   // dispatch by hand so a failed attempt doesn't reset what was typed
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!sources.length) return setLocalError("Tell us where your data comes from.");
+    if (!sources.length) return setLocalError(t.errors.sources);
     const data = new FormData(event.currentTarget);
     setWho({ name: String(data.get("name") ?? "").trim().split(/\s+/)[0], email: String(data.get("email") ?? "").trim() });
     startTransition(() => dispatch(data));
@@ -72,15 +74,14 @@ export function FreeSampleDialog({ onClose }: { onClose: () => void }) {
           {state.sent ? (
             <div className="flex flex-col gap-4 p-6">
               <h2 id="sample-title" className="text-xl font-bold">
-                Thanks{who.name ? `, ${who.name}` : ""}!
+                {t.thanks(who.name)}
               </h2>
               <p className="text-sm leading-relaxed text-[#605E5C]">
-                We&apos;ll send your free sample{who.email ? ` to ${who.email}` : ""} shortly, ready to plug on your
-                data.
+                {t.sent(who.email)}
               </p>
               <div className="flex justify-end pt-1">
                 <button type="button" onClick={onClose} className={primary} autoFocus>
-                  Close
+                  {t.close}
                 </button>
               </div>
             </div>
@@ -88,24 +89,23 @@ export function FreeSampleDialog({ onClose }: { onClose: () => void }) {
             <form onSubmit={handleSubmit} className="flex flex-col gap-4 p-6">
               <div className="flex flex-col gap-1.5">
                 <h2 id="sample-title" className="text-xl font-bold">
-                  Get a free sample
+                  {t.title}
                 </h2>
                 <p className="text-sm leading-relaxed text-[#605E5C]">
-                  Tell us a bit about you and we&apos;ll send a free version of these templates you can plug on your
-                  data.
+                  {t.intro}
                 </p>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2">
-                <Field id="name" label="Name" autoComplete="name" autoFocus />
-                <Field id="company" label="Company" autoComplete="organization" />
-                <Field id="email" label="Email" type="email" autoComplete="email" />
-                <Field id="phone" label="Phone number" type="tel" autoComplete="tel" />
+                <Field id="name" label={t.name} autoComplete="name" autoFocus />
+                <Field id="company" label={t.company} autoComplete="organization" />
+                <Field id="email" label={t.email} type="email" autoComplete="email" />
+                <Field id="phone" label={t.phone} type="tel" autoComplete="tel" />
               </div>
 
               <fieldset className="flex flex-col gap-2">
-                <legend className="text-sm font-semibold">Where does your data come from?</legend>
-                <p className="-mt-1 text-xs text-[#605E5C]">Select all that apply.</p>
+                <legend className="text-sm font-semibold">{t.sourcesQuestion}</legend>
+                <p className="-mt-1 text-xs text-[#605E5C]">{t.selectAll}</p>
                 <div className="grid grid-cols-2 gap-x-3 gap-y-2">
                   {DATA_SOURCES.map((source) => (
                     <label key={source} className="flex cursor-pointer items-center gap-2 text-sm">
@@ -117,12 +117,12 @@ export function FreeSampleDialog({ onClose }: { onClose: () => void }) {
                         onChange={() => toggle(source)}
                         className="h-4 w-4 accent-[#252423]"
                       />
-                      {source}
+                      {t.sources[source]}
                     </label>
                   ))}
                 </div>
                 {sources.includes("Other") && (
-                  <input name="otherSource" aria-label="Other data sources" placeholder="Which ones?" className={input} />
+                  <input name="otherSource" aria-label={t.otherLabel} placeholder={t.otherPlaceholder} className={input} />
                 )}
               </fieldset>
 
@@ -134,10 +134,10 @@ export function FreeSampleDialog({ onClose }: { onClose: () => void }) {
 
               <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
                 <button type="button" onClick={onClose} className={secondary}>
-                  Cancel
+                  {t.cancel}
                 </button>
                 <button type="submit" disabled={pending} className={primary}>
-                  {pending ? "Sending…" : "Send me a sample"}
+                  {pending ? t.sending : t.send}
                 </button>
               </div>
             </form>

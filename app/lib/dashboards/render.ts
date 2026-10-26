@@ -10,6 +10,7 @@ import {
   type ReportBoot,
   type ReportRequest,
 } from "@/app/examples/report";
+import type { Lang } from "@/app/lib/i18n/config";
 
 // Server-side entry point for the /examples report pages.
 
@@ -17,10 +18,10 @@ export function marketSuppliers() {
   return [...new Set(getRows().map((r) => r.supplier))].sort((a, b) => a.localeCompare(b));
 }
 
-export function renderReport(req: ReportRequest): string {
-  if (req.page === "command") return buildCommandCenter(req.filters);
-  if (req.page === "spotlight") return buildSupplierSpotlight(req.filters.supplier, req.filters);
-  return buildTable(req.filters.grouping, req.filters.highlight);
+export function renderReport(req: ReportRequest, lang: Lang): string {
+  if (req.page === "command") return buildCommandCenter(req.filters, lang);
+  if (req.page === "spotlight") return buildSupplierSpotlight(req.filters.supplier, req.filters, lang);
+  return buildTable(req.filters.grouping, req.filters.highlight, lang);
 }
 
 // request bodies come from the browser: only accept known pages and values
@@ -35,7 +36,7 @@ export function isValidRequest(req: unknown): req is ReportRequest {
   return false;
 }
 
-export function bootReport(): ReportBoot {
+export function bootReport(lang: Lang): ReportBoot {
   const defaults: PageFilters = {
     command: { type: "All", status: "All" },
     spotlight: { supplier: featuredSupplier(), type: "All", status: "All" },
@@ -44,9 +45,9 @@ export function bootReport(): ReportBoot {
   return {
     defaults,
     html: {
-      command: renderReport({ page: "command", filters: defaults.command }),
-      spotlight: renderReport({ page: "spotlight", filters: defaults.spotlight }),
-      tables: renderReport({ page: "tables", filters: defaults.tables }),
+      command: renderReport({ page: "command", filters: defaults.command }, lang),
+      spotlight: renderReport({ page: "spotlight", filters: defaults.spotlight }, lang),
+      tables: renderReport({ page: "tables", filters: defaults.tables }, lang),
     },
     suppliers: ourSuppliers(),
     marketSuppliers: marketSuppliers(),

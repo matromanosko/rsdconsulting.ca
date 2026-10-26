@@ -1,13 +1,17 @@
 import type { CSSProperties } from "react";
 import HoursSaved from "./HoursSaved";
 import { FIRST_YEAR, OUR_AGENT, getRows } from "@/app/lib/dashboards/data";
+import { int, pct, short, withLang } from "@/app/lib/dashboards/format";
+import { term } from "@/app/lib/dashboards/i18n";
+import type { Lang } from "@/app/lib/i18n/config";
+import { dict } from "@/app/lib/i18n/dictionaries";
 
 // Hero "dashboard cards" in a bento grid, drawn from the same mock dataset as
 // the embedded demos so the numbers line up. Entrance and chart animations
 // are the .hero-* classes in globals.css; --d staggers each one.
 
 function fmtMoney(x: number) {
-  return x >= 1_000_000 ? `$${(x / 1_000_000).toFixed(1)}M` : `$${Math.round(x / 1000)}K`;
+  return x >= 1_000_000 ? short(x, "M", 1, true) : short(x, "K", 0, true);
 }
 
 function linePath(values: number[], w: number, h: number, pad = 4) {
@@ -20,7 +24,13 @@ function linePath(values: number[], w: number, h: number, pad = 4) {
   return { line, area, last: pts[pts.length - 1] };
 }
 
-export default function HeroCards() {
+export default function HeroCards({ lang = "en" }: { lang?: Lang }) {
+  // called, not rendered, so the numbers format while withLang is active
+  return withLang(lang, () => cards(lang));
+}
+
+function cards(lang: Lang) {
+  const t = dict(lang).hero;
   const rows = getRows().filter((r) => r.agent === OUR_AGENT);
   const years = rows[0].hist.map((_, i) => FIRST_YEAR + i);
   const cases = years.map((_, i) => rows.reduce((s, r) => s + r.hist[i], 0));
@@ -32,10 +42,10 @@ export default function HeroCards() {
   const ryL = rows.reduce((s, r) => s + r.ryL, 0);
 
   const channels = [
-    { label: "Retail", v: rows.reduce((s, r) => s + r.c1, 0), color: "var(--accent)" },
-    { label: "On premise", v: rows.reduce((s, r) => s + r.c2, 0), color: "#b9737d" },
-    { label: "Restaurant supply", v: rows.reduce((s, r) => s + r.c3, 0), color: "#d9b8b8" },
-    { label: "Agency", v: rows.reduce((s, r) => s + r.c4, 0), color: "#e9e2d6" },
+    { label: t.channels[0], v: rows.reduce((s, r) => s + r.c1, 0), color: "var(--accent)" },
+    { label: t.channels[1], v: rows.reduce((s, r) => s + r.c2, 0), color: "#b9737d" },
+    { label: t.channels[2], v: rows.reduce((s, r) => s + r.c3, 0), color: "#d9b8b8" },
+    { label: t.channels[3], v: rows.reduce((s, r) => s + r.c4, 0), color: "#e9e2d6" },
   ];
   const chTot = channels.reduce((s, c) => s + c.v, 0);
   const R = 15.9155; // circumference 100
@@ -57,11 +67,13 @@ export default function HeroCards() {
               <svg viewBox="0 0 16 16" className="h-3.5 w-3.5"><path d="M2 13h12M4 10v2M7 7v5M10 9v3M13 4v8" stroke="currentColor" strokeWidth="1.6" fill="none" strokeLinecap="round" /></svg>
             </span>
             <div>
-              <p className="text-xs font-semibold">Depletions · 9L cases</p>
-              <p className="text-[10px] text-muted">{OUR_AGENT} · {FIRST_YEAR}–2025 + rolling year</p>
+              <p className="text-xs font-semibold">{t.depletions}</p>
+              <p className="text-[10px] text-muted">
+                {term(lang, OUR_AGENT)} · {FIRST_YEAR}–2025 + {t.span}
+              </p>
             </div>
           </div>
-          <span className="rounded-full bg-band px-2 py-0.5 text-[10px] text-muted">10 yrs</span>
+          <span className="rounded-full bg-band px-2 py-0.5 text-[10px] text-muted">{t.years}</span>
         </div>
         <svg viewBox="0 0 300 96" className="mt-3 h-24 w-full overflow-visible" preserveAspectRatio="none">
           <defs>
@@ -88,17 +100,22 @@ export default function HeroCards() {
           <span>{FIRST_YEAR}</span>
           <span>2020</span>
           <span>2025</span>
-          <span className="font-semibold text-foreground">RY {Math.round(ry / 1000)}K</span>
+          <span className="font-semibold text-foreground">
+            {t.ry} {short(ry, "K", 0)}
+          </span>
         </div>
       </div>
 
       <div className="flex flex-col gap-4">
         {/* KPI card */}
         <div aria-hidden className={card} style={delay(150)}>
-          <p className="text-xs font-semibold text-accent">Sales $ · rolling year</p>
+          <p className="text-xs font-semibold text-accent">{t.salesRy}</p>
           <p className="mt-1 font-display text-2xl font-semibold tracking-tight">{fmtMoney(ty)}</p>
           <p className={`text-[11px] font-medium ${vp >= 0 ? "text-[#12a150]" : "text-[#e5484d]"}`}>
-            {vp >= 0 ? "▲" : "▼"} {Math.abs(vp * 100).toFixed(1)}% <span className="font-normal text-muted">vs {fmtMoney(ly)} last year</span>
+            {vp >= 0 ? "▲" : "▼"} {pct(Math.abs(vp))}{" "}
+            <span className="font-normal text-muted">
+              vs {fmtMoney(ly)} {t.lastYear}
+            </span>
           </p>
           <svg viewBox="0 0 120 40" className="mt-2 h-10 w-full" preserveAspectRatio="none">
             <g className="hero-reveal" style={delay(450)}>
@@ -106,7 +123,7 @@ export default function HeroCards() {
             </g>
           </svg>
           <p className="mt-1 text-[10px] text-muted">
-            {Math.round(ry).toLocaleString("en-US")} cases · {ryL ? `${(((ry - ryL) / ryL) * 100).toFixed(1)}% vs LY` : ""}
+            {int(ry)} {t.cases} · {ryL ? `${pct((ry - ryL) / ryL)} ${t.vsLy}` : ""}
           </p>
         </div>
 
@@ -118,8 +135,8 @@ export default function HeroCards() {
 
       {/* channel donut */}
       <div aria-hidden className={`${card} flex flex-col`} style={delay(300)}>
-        <p className="text-xs font-semibold">Channel mix</p>
-        <p className="text-[10px] text-muted">9L cases · rolling year</p>
+        <p className="text-xs font-semibold">{t.channelMix}</p>
+        <p className="text-[10px] text-muted">{t.casesRy}</p>
         <svg viewBox="0 0 42 42" className="mx-auto my-4 h-28 w-28">
           <circle cx="21" cy="21" r={R} fill="none" stroke="var(--band)" strokeWidth="6" />
           {channels.map((c) => {
@@ -148,7 +165,7 @@ export default function HeroCards() {
             <li key={c.label} className="flex items-center gap-1.5 whitespace-nowrap">
               <span className="h-2 w-2 rounded-sm" style={{ background: c.color }} />
               {c.label}
-              <span className="ml-auto tabular-nums text-muted">{Math.round((c.v / chTot) * 100)}%</span>
+              <span className="ml-auto tabular-nums text-muted">{pct(c.v / chTot, 0)}</span>
             </li>
           ))}
         </ul>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useDict } from "@/app/lib/i18n/LangProvider";
 
 // Hero stat: counts 0 → TARGET once it scrolls into view. Skips the
 // animation for visitors who prefer reduced motion.
@@ -9,6 +10,7 @@ const TARGET = 200;
 const DURATION = 1600;
 
 export default function HoursSaved() {
+  const label = useDict().hero.hoursSaved;
   const ref = useRef<HTMLParagraphElement>(null);
   const [value, setValue] = useState(0);
 
@@ -42,12 +44,12 @@ export default function HoursSaved() {
 
   return (
     <p ref={ref} className="flex items-baseline gap-2">
-      <span className="sr-only">{TARGET} hours saved</span>
+      <span className="sr-only">{`${TARGET} ${label}`}</span>
       <span className="font-display text-4xl font-medium tabular-nums tracking-tight text-accent" aria-hidden>
         {value}
       </span>
       <span className="whitespace-nowrap text-sm font-medium" aria-hidden>
-        hours saved
+        {label}
       </span>
     </p>
   );

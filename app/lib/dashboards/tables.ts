@@ -3,8 +3,10 @@
 // The demo fixes the columns instead of reading the selector slicers, and
 // swaps only the grouping.
 
+import type { Lang } from "@/app/lib/i18n/config";
 import { Row, getRows } from "./data";
-import { N, divide, int, pct } from "./format";
+import { N, divide, int, money, pct, withLang } from "./format";
+import { dash, term, type DashStrings } from "./i18n";
 
 export type Grouping = "suppliers" | "brands" | "countries" | "segments";
 
@@ -22,15 +24,16 @@ type Col = {
 };
 
 // one fixed set: TY + % chg for three volume windows and sales $
-const COLUMNS: Col[] = [
-  ["Sales R3", "Sales R3 (9L)", 60],
-  ["Sales YTD", "Sales YTD (9L)", 62],
-  ["Sales RY", "Sales RY (9L)", 64],
-  ["Sales $", "Total Sales ($)", 68],
-].flatMap(([m, h, o]) => [
-  { col: m as string, header: h as string, sub: "TY", kind: "Num" as Kind, metric: m as Metric, fmt: m === "Sales $" ? "$#,##0" : "#,##0", order: o as number },
-  { col: m as string, header: h as string, sub: "% chg", kind: "Pct" as Kind, metric: m as Metric, fmt: "0.0%", order: (o as number) + 0.1 },
-]);
+const columns = (t: DashStrings["tables"]): Col[] =>
+  ([
+    ["Sales R3", 60],
+    ["Sales YTD", 62],
+    ["Sales RY", 64],
+    ["Sales $", 68],
+  ] as const).flatMap(([m, o], i) => [
+    { col: m, header: t.columns[i], sub: t.ty, kind: "Num" as Kind, metric: m, fmt: m === "Sales $" ? "$#,##0" : "#,##0", order: o },
+    { col: m, header: t.columns[i], sub: t.chg, kind: "Pct" as Kind, metric: m, fmt: "0.0%", order: o + 0.1 },
+  ]);
 
 function ty(r: Row, m: Metric): number {
   return m === "Sales R3" ? r.r3 : m === "Sales YTD" ? r.yt : m === "Sales RY" ? r.ry : r.d;
@@ -42,7 +45,7 @@ function lyv(r: Row, m: Metric): number {
 function fmtNum(x: N, fmt: string) {
   if (x === null) return "";
   if (fmt === "0.0%") return pct(x);
-  if (fmt === "$#,##0") return (x < 0 ? "-$" : "$") + int(Math.abs(x));
+  if (fmt === "$#,##0") return money(x);
   return int(x);
 }
 
@@ -78,7 +81,6 @@ const DOWN = "#B42318";
 const TOT_UP = "#86EFAC";
 const TOT_DOWN = "#FCA5A5";
 const MUTED = "#6B625B";
-const SORT_LABEL = "Total Sales $ RY";
 
 function sizing(o: {
   bodyRows: number; sepRows: number; nameChars: number; wrapLines: number; rs: number;
@@ -121,6 +123,7 @@ function withGroups(cols: Col[]) {
 }
 
 function heads(cols: ReturnType<typeof withGroups>, s: Styles, nameHeader: string, rankHeader: string, arrows: boolean) {
+  // the sort arrow marks the first sales $ column
   const hasCols = cols.length > 0;
   const rs = hasCols ? 2 : 1;
   const h1 =
@@ -134,7 +137,7 @@ function heads(cols: ReturnType<typeof withGroups>, s: Styles, nameHeader: strin
       cols
         .map(
           (c) =>
-            `<th style='${s.th}font-weight:600;'>${c.sub}${arrows && c.metric === "Sales $" && c.sub === "TY" ? " &#9660;" : ""}</th>`,
+            `<th style='${s.th}font-weight:600;'>${c.sub}${arrows && c.metric === "Sales $" && c.kind === "Num" ? " &#9660;" : ""}</th>`,
         )
         .join("") +
       "</tr>"
@@ -178,6 +181,7 @@ type Member = { name: string; rows: Row[]; sales: number; rank: number; isHL: bo
 
 // shared body for the ranked-member tables (brands, segments, countries)
 function memberTable(o: {
+  t: DashStrings["tables"];
   members: Member[];
   total: { label: string; rows: Row[] };
   topN: number | null;
@@ -211,7 +215,7 @@ function memberTable(o: {
     clamp: o.clamp,
   });
   const s = styles(sz.font, o.pad);
-  const { h1, h2 } = heads(cols, s, o.nameHeader, "Rank", o.arrows);
+  const { h1, h2 } = heads(cols, s, o.nameHeader, o.t.rank, o.arrows);
   const nameCell = "white-space:normal;min-width:6em;max-width:16em;";
   const colCount = cols.length + 2;
 
@@ -221,7 +225,7 @@ function memberTable(o: {
     const sep =
       rank !== null && rank === firstExtra
         ? `<tr><td colspan='${colCount}' style='${s.pad}font-size:${sz.small};text-align:center;color:${MUTED};background:#F4F0EA;border:1px solid ${GRID};'>` +
-          `&bull; &bull; &bull;&nbsp; ${o.sepLabel} outside the top ${o.topN} &nbsp;&bull; &bull; &bull;</td></tr>`
+          `&bull; &bull; &bull;&nbsp; ${o.t.outsideTop(o.sepLabel, o.topN!)} &nbsp;&bull; &bull; &bull;</td></tr>`
         : "";
     return (
       sep +
@@ -249,33 +253,33 @@ function members(rows: Row[], key: (r: Row) => string, hl: Set<string>): Member[
   return list;
 }
 
+// keys name members in the report language; supplier and brand names stay as they are
 const GROUPINGS: Record<
   Grouping,
-  { key: (r: Row) => string; rows: (all: Row[]) => Row[]; header: string; plural: string; total: string; topN: number | null }
+  { key: (r: Row, lang: Lang) => string; rows: (all: Row[]) => Row[]; topN: number | null }
 > = {
-  suppliers: { key: (r) => r.supplier, rows: (a) => a, header: "Supplier", plural: "suppliers", total: "Total market", topN: 15 },
-  brands: { key: (r) => r.brand, rows: (a) => a, header: "Brand", plural: "brands", total: "Total market", topN: 15 },
-  countries: {
-    key: (r) => r.country,
-    rows: (a) => a.filter((r) => r.segment === "Wines"),
-    header: "Country",
-    plural: "wine countries",
-    total: "Total Wines",
-    topN: 15,
-  },
-  segments: { key: (r) => r.segment, rows: (a) => a, header: "Segment", plural: "segments", total: "Total market", topN: null },
+  suppliers: { key: (r) => r.supplier, rows: (a) => a, topN: 15 },
+  brands: { key: (r) => r.brand, rows: (a) => a, topN: 15 },
+  countries: { key: (r, lang) => term(lang, r.country), rows: (a) => a.filter((r) => r.segment === "Wines"), topN: 15 },
+  segments: { key: (r, lang) => term(lang, r.segment), rows: (a) => a, topN: null },
 };
 
 // the supplier whose rows the demo highlights, as the supplier slicer would
 export const HIGHLIGHT_SUPPLIER = "Familia Andrade";
 
-export function buildTable(grouping: Grouping, highlight = HIGHLIGHT_SUPPLIER): string {
-  const g = GROUPINGS[grouping];
+export function buildTable(grouping: Grouping, highlight = HIGHLIGHT_SUPPLIER, lang: Lang = "en"): string {
+  return withLang(lang, () => build(grouping, highlight, lang));
+}
+
+function build(grouping: Grouping, highlight: string, lang: Lang): string {
+  const t = dash(lang).tables;
+  const g = { ...GROUPINGS[grouping], ...t.groupings[grouping] };
+  const key = (r: Row) => g.key(r, lang);
   const rows = g.rows(getRows());
   const sup = highlight;
   const supName = esc(sup);
-  const hlKeys = new Set(rows.filter((r) => r.supplier === sup).map(g.key));
-  const ms = members(rows, g.key, hlKeys);
+  const hlKeys = new Set(rows.filter((r) => r.supplier === sup).map(key));
+  const ms = members(rows, key, hlKeys);
   const hl = ms.filter((m) => m.isHL).sort((a, b) => a.rank - b.rank);
   const best = hl[0]?.rank;
   const names = hl.map((m) => esc(m.name)).join(", ");
@@ -284,34 +288,35 @@ export function buildTable(grouping: Grouping, highlight = HIGHLIGHT_SUPPLIER): 
   let badge: string | null = null;
   let sepLabel = supName;
   if (hl.length) {
-    if (grouping === "suppliers") badge = `<b>${supName}</b> &middot; #${best} of ${ms.length}`;
+    if (grouping === "suppliers") badge = `<b>${supName}</b> &middot; ${t.rankOf(best, ms.length)}`;
     if (grouping === "brands") {
-      sepLabel = `${supName} brands`;
+      sepLabel = t.supBrands(supName);
       badge =
         hl.length > 1
-          ? `<b>${sepLabel}</b> &middot; ${hl.length} brands &middot; best #${best} of ${ms.length}`
-          : `<b>${names}</b> &middot; #${best} of ${ms.length}`;
+          ? `<b>${sepLabel}</b> &middot; ${t.brandsBest(hl.length, best, ms.length)}`
+          : `<b>${names}</b> &middot; ${t.rankOf(best, ms.length)}`;
     }
     if (grouping === "countries") {
-      sepLabel = `${supName} countries`;
+      sepLabel = t.supCountries(supName);
       const inTop = hl.filter((m) => m.rank <= (g.topN ?? Infinity)).length;
-      badge = `<b>${supName}</b> &middot; ${names} &middot; ${inTop} in the top ${g.topN}`;
+      badge = `<b>${supName}</b> &middot; ${names} &middot; ${t.inTop(inTop, g.topN)}`;
     }
-    if (grouping === "segments") badge = `<b>${names}</b> &middot; segment for ${supName}`;
+    if (grouping === "segments") badge = `<b>${names}</b> &middot; ${t.segmentFor(supName)}`;
   }
 
   return memberTable({
+    t,
     members: ms,
     total: { label: g.total, rows },
     topN: g.topN,
     sepLabel,
-    cols: COLUMNS,
+    cols: columns(t),
     nameHeader: g.header,
     clamp: [10, 22],
     pad: "padding:0.1em 0.15em;",
     arrows: true,
-    main: g.topN ? `Top ${g.topN} ${g.plural}` : g.plural[0].toUpperCase() + g.plural.slice(1),
-    sub: `${ms.length} ${g.plural} &middot; sorted by ${SORT_LABEL}`,
+    main: g.topN ? t.top(g.topN, g.plural) : g.plural[0].toUpperCase() + g.plural.slice(1),
+    sub: t.sortedBy(ms.length, g.plural, t.sortLabel),
     badge,
     minWidth: true,
   });

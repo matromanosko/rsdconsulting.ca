@@ -3,6 +3,9 @@ import { Geist } from "next/font/google";
 import { Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { BRAND } from "@/app/lib/brand";
+import { getLang } from "@/app/lib/i18n/server";
+import { dict } from "@/app/lib/i18n/dictionaries";
+import { LangProvider } from "@/app/lib/i18n/LangProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -14,24 +17,27 @@ const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: `${BRAND} — Power BI for wine agencies using ezFocus`,
-  description:
-    "Power BI reporting for wine agencies. We turn your ezFocus sales data into automated dashboards and supplier reports, and save your team hours of manual data work.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = dict(await getLang());
+  return {
+    title: `${BRAND} — ${t.meta.title}`,
+    description: t.meta.description,
+  };
+}
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const lang = await getLang();
   return (
     <html
-      lang="en"
+      lang={lang}
       className={`${geistSans.variable} ${spaceGrotesk.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col font-sans">
-        {children}
+        <LangProvider lang={lang}>{children}</LangProvider>
       </body>
     </html>
   );

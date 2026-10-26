@@ -1,9 +1,12 @@
 import Link from "next/link";
 import { Mark } from "./ui";
 import BookCallButton from "@/app/components/BookCall";
-import { BRAND, PARTNERS, TAGLINE } from "@/app/lib/brand";
+import { BRAND, PARTNERS } from "@/app/lib/brand";
+import { getLang } from "@/app/lib/i18n/server";
+import { dict } from "@/app/lib/i18n/dictionaries";
 
-export default function Footer() {
+export default async function Footer() {
+  const t = dict(await getLang());
   const year = new Date().getFullYear();
 
   return (
@@ -15,16 +18,16 @@ export default function Footer() {
             <span className="flex flex-col leading-tight">
               <span className="leading-[1.05]">{PARTNERS[0]} &amp;</span>
               <span className="leading-[1.05]">{PARTNERS[1]}</span>
-              <span className="mt-1 text-base text-white/60">{TAGLINE}</span>
+              <span className="mt-1 text-base text-white/60">{t.tagline}</span>
             </span>
           </Link>
           <dl className="grid gap-6 text-sm sm:grid-cols-3">
             <div>
-              <dt className="text-xs text-white/60">Focus</dt>
-              <dd className="mt-1">Power BI for wine agencies on ezFocus</dd>
+              <dt className="text-xs text-white/60">{t.footer.focus}</dt>
+              <dd className="mt-1">{t.footer.focusValue}</dd>
             </div>
             <div>
-              <dt className="text-xs text-white/60">Email</dt>
+              <dt className="text-xs text-white/60">{t.footer.email}</dt>
               <dd className="mt-1">
                 <a href="mailto:mat@rsdconsulting.ca" className="hover:underline">
                   mat@rsdconsulting.ca
@@ -32,7 +35,7 @@ export default function Footer() {
               </dd>
             </div>
             <div>
-              <dt className="text-xs text-white/60">Phone</dt>
+              <dt className="text-xs text-white/60">{t.footer.phone}</dt>
               <dd className="mt-1">
                 <a href="tel:+14384930238" className="hover:underline">
                   (438)-493-0238
@@ -42,11 +45,11 @@ export default function Footer() {
           </dl>
           <div>
             <BookCallButton className="inline-block rounded-full bg-accent px-7 py-3.5 text-base font-medium text-white transition-opacity hover:opacity-90">
-              Book a free call
+              {t.bookFreeCall}
             </BookCallButton>
           </div>
           <p className="text-xs text-white/50">
-            © {year} {BRAND}. Independent consultancy, not affiliated with ezFocus or Microsoft.
+            © {year} {BRAND}. {t.footer.legal}
           </p>
         </div>
         <svg
@@ -63,7 +66,7 @@ export default function Footer() {
         <svg viewBox="3 0 18 18" className="h-6 w-6 shrink-0" fill="currentColor" aria-hidden>
           <path d="M12 2l1.6 3.2 1.9-.9-.6 4.3 2.6-2.4.6 1.4 2.4-.4-.9 2.7 1.4.7-4.6 3.8.5 1.6-4.4-.6h-1l-4.4.6.5-1.6L3 10.6l1.4-.7-.9-2.7 2.4.4.6-1.4 2.6 2.4-.6-4.3 1.9.9z" />
         </svg>
-        <span>Proudly Canadian, based in MTL</span>
+        <span>{t.footer.canadian}</span>
       </p>
     </footer>
   );

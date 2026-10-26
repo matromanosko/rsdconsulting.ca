@@ -1,0 +1,298 @@
+import type { Lang } from "./config";
+
+// Every string on the site and the /examples workspace, in English and
+// French. Headings with an accented word are [before, accent, after].
+// The dashboards themselves have their own strings in dashboards/i18n.ts.
+
+type Accent = readonly [string, string, string?];
+type Lines = readonly [string, string];
+
+const en = {
+  meta: {
+    title: "Power BI for wine agencies using ezFocus",
+    description:
+      "Power BI reporting for wine agencies. We turn your ezFocus sales data into automated dashboards and supplier reports, and save your team hours of manual data work.",
+    examplesTitle: "Live examples — Power BI for wine agencies",
+    examplesDescription:
+      "Explore live Power BI reports built on mock ezFocus data: agency KPI dashboard, supplier dashboard and ranked tables.",
+  },
+  tagline: "Power BI Specialists",
+  nav: { examples: "Examples", faq: "FAQ", main: "Main", language: "Language" },
+  bookCall: "Book a call",
+  bookCallShort: "Book a call",
+  bookFreeCall: "Book a free call",
+  booking: {
+    title: "Book a free 30-minute call",
+    openCalendly: "Open in Calendly ↗",
+    close: "Close",
+    loading: "Loading calendar…",
+  },
+  home: {
+    heroEyebrow: "ezFocus-to-Power BI specialists",
+    heroTitle: ["Automate data handling, focus on ", "decisions"] as Accent,
+    heroBody: "We're Power BI engineers specialised in helping Canadian wine & spirit agencies save time on data work.",
+    seeExamples: "See live examples",
+    integrated: ["", "Seamlessly integrated", " with ezFocus data"] as Accent,
+    examplesEyebrow: "Live examples",
+    examplesTitle: ["Track your sales data", "exactly how you ", "dreamt it", "."] as readonly [string, string, string, string],
+    examplesBody: [
+      "Check out three example templates below to see what we can do.",
+      "We can start from there, or build custom visuals exactly how you want them.",
+    ] as Lines,
+    freeSample: "Get a free sample",
+    faqTitle: ["Common ", "questions"] as Accent,
+    faqs: [
+      {
+        question: "Why do I need Power BI on top of ezFocus?",
+        answer:
+          "Power BI handles data much better than ezFocus, and lets us present it however you want. Having both together eliminates the need for you to format data manually.",
+      },
+      { question: "How do you integrate with ezFocus?", answer: "We use the ezFocus API to pull data in real time." },
+      { question: "Do we need Power BI licenses?", answer: "Yes. They cost about $14 per member." },
+      {
+        question: "How long does a project take?",
+        answer: "Usually around 1 to 2 months, depending on how many data sources and reports you need.",
+      },
+      {
+        question: "Can our suppliers see their own reports?",
+        answer: "Yes. You can give your suppliers view access, if you want to.",
+      },
+    ],
+    ctaEyebrow: "Free 30-minute call",
+    ctaTitle: ["Let's get your data ", "sorted", "."] as Accent,
+    ctaBody:
+      "Book a 30-minute intro call to see what we can do. Send us info on your data sources and KPIs to save time on the call, so we can draw up mockups beforehand.",
+  },
+  hero: {
+    depletions: "Depletions · 9L cases",
+    span: "rolling year",
+    years: "10 yrs",
+    ry: "RY",
+    salesRy: "Sales $ · rolling year",
+    lastYear: "last year",
+    cases: "cases",
+    vsLy: "vs LY",
+    channelMix: "Channel mix",
+    casesRy: "9L cases · rolling year",
+    channels: ["Retail", "On premise", "Restaurant supply", "Agency"],
+    hoursSaved: "hours saved",
+  },
+  footer: {
+    focus: "Focus",
+    focusValue: "Power BI for wine agencies on ezFocus",
+    email: "Email",
+    phone: "Phone",
+    legal: "Independent consultancy, not affiliated with ezFocus or Microsoft.",
+    canadian: "Proudly Canadian, based in MTL",
+  },
+  pbi: {
+    home: "Home",
+    demo: "Demo",
+    previewTitle: "Three live reports on mock ezFocus data",
+    previewCta: "Open the live examples",
+    pages: { command: "Agency KPI Dashboard", spotlight: "Supplier Dashboard", tables: "Ranked tables" },
+    mockData: "mock data",
+    filters: "Filters",
+    freeSample: "Free sample",
+    freeSampleShort: "Free sample",
+    guest: "Guest",
+    pagesPane: "Pages",
+    reportPages: "Report pages",
+    collapsePages: "Collapse pages",
+    expandPages: "Expand pages",
+    collapseFilters: "Collapse filters",
+    expandFilters: "Expand filters",
+    closeFilters: "Close filters",
+    filtersOnPage: "Filters on this page",
+    resetAll: "Reset all",
+    allMock: "All figures are mock ezFocus data.",
+    clearFilter: "Clear filter",
+    clearNamed: (label: string) => `Clear ${label} filter`,
+    is: "is",
+    listingType: "Listing type",
+    status: "Status",
+    supplier: "Supplier",
+    groupBy: "Group by",
+    highlightSupplier: "Highlight supplier",
+    all: "All",
+    statuses: { All: "All", Active: "Active", Inactive: "Inactive" },
+    groupings: { suppliers: "Suppliers", brands: "Brands", countries: "Wine countries", segments: "Segments" },
+  },
+  sample: {
+    title: "Get a free sample",
+    intro: "Tell us a bit about you and we'll send a free version of these templates you can plug on your data.",
+    name: "Name",
+    company: "Company",
+    email: "Email",
+    phone: "Phone number",
+    sourcesQuestion: "Where does your data come from?",
+    selectAll: "Select all that apply.",
+    sources: { ezFocus: "ezFocus", "CRM tools": "CRM tools", "Accounting software": "Accounting software", Other: "Other" },
+    otherLabel: "Other data sources",
+    otherPlaceholder: "Which ones?",
+    cancel: "Cancel",
+    sending: "Sending…",
+    send: "Send me a sample",
+    thanks: (name: string) => `Thanks${name ? `, ${name}` : ""}!`,
+    sent: (email: string) => `We'll send your free sample${email ? ` to ${email}` : ""} shortly, ready to plug on your data.`,
+    close: "Close",
+    errors: {
+      nameCompany: "Please fill in your name and company.",
+      email: "Please enter a valid email address.",
+      phone: "Please enter a valid phone number.",
+      sources: "Tell us where your data comes from.",
+    },
+  },
+  toggle: { en: "English", fr: "Français" },
+};
+
+export type Dictionary = typeof en;
+
+const fr: Dictionary = {
+  meta: {
+    title: "Power BI pour les agences de vins sur ezFocus",
+    description:
+      "Rapports Power BI pour les agences de vins. Nous transformons vos données de ventes ezFocus en tableaux de bord et en rapports fournisseurs automatisés, et faisons gagner à votre équipe des heures de travail manuel.",
+    examplesTitle: "Exemples en direct — Power BI pour les agences de vins",
+    examplesDescription:
+      "Explorez des rapports Power BI en direct, bâtis sur des données ezFocus fictives : tableau de bord agence, tableau de bord fournisseur et classements.",
+  },
+  tagline: "Spécialistes Power BI",
+  nav: { examples: "Exemples", faq: "FAQ", main: "Principal", language: "Langue" },
+  bookCall: "Réserver un appel",
+  bookCallShort: "Réserver",
+  bookFreeCall: "Réserver un appel gratuit",
+  booking: {
+    title: "Réserver un appel gratuit de 30 minutes",
+    openCalendly: "Ouvrir dans Calendly ↗",
+    close: "Fermer",
+    loading: "Chargement du calendrier…",
+  },
+  home: {
+    heroEyebrow: "Spécialistes ezFocus et Power BI",
+    heroTitle: ["Automatisez vos données, misez sur vos ", "décisions"],
+    heroBody:
+      "Nous sommes des ingénieurs Power BI qui aident les agences de vins et spiritueux canadiennes à gagner du temps sur le traitement de leurs données.",
+    seeExamples: "Voir les exemples en direct",
+    integrated: ["", "Intégration transparente", " avec vos données ezFocus"],
+    examplesEyebrow: "Exemples en direct",
+    examplesTitle: ["Suivez vos ventes", "exactement comme vous l’avez ", "rêvé", "."],
+    examplesBody: [
+      "Découvrez trois modèles ci-dessous pour voir ce que nous pouvons faire.",
+      "On peut partir de là, ou créer des visuels sur mesure, exactement comme vous les voulez.",
+    ],
+    freeSample: "Obtenir un échantillon gratuit",
+    faqTitle: ["Questions ", "fréquentes"],
+    faqs: [
+      {
+        question: "Pourquoi ai-je besoin de Power BI en plus d’ezFocus?",
+        answer:
+          "Power BI traite les données beaucoup mieux qu’ezFocus et nous permet de les présenter comme vous le voulez. Avec les deux ensemble, vous n’avez plus à mettre en forme vos données à la main.",
+      },
+      {
+        question: "Comment vous connectez-vous à ezFocus?",
+        answer: "Nous utilisons l’API d’ezFocus pour extraire les données en temps réel.",
+      },
+      { question: "Avons-nous besoin de licences Power BI?", answer: "Oui. Elles coûtent environ 14 $ par membre." },
+      {
+        question: "Combien de temps dure un projet?",
+        answer: "Généralement de 1 à 2 mois, selon le nombre de sources de données et de rapports dont vous avez besoin.",
+      },
+      {
+        question: "Nos fournisseurs peuvent-ils voir leurs propres rapports?",
+        answer: "Oui. Vous pouvez donner à vos fournisseurs un accès en lecture, si vous le souhaitez.",
+      },
+    ],
+    ctaEyebrow: "Appel gratuit de 30 minutes",
+    ctaTitle: ["Mettons de l’ordre dans vos ", "données", "."],
+    ctaBody:
+      "Réservez un appel de présentation de 30 minutes pour voir ce que nous pouvons faire. Envoyez-nous de l’information sur vos sources de données et vos indicateurs clés pour gagner du temps : nous pourrons préparer des maquettes avant l’appel.",
+  },
+  hero: {
+    depletions: "Ventes · caisses 9 L",
+    span: "année mobile",
+    years: "10 ans",
+    ry: "AM",
+    salesRy: "Ventes $ · année mobile",
+    lastYear: "l’an dernier",
+    cases: "caisses",
+    vsLy: "vs AP",
+    channelMix: "Répartition par canal",
+    casesRy: "Caisses 9 L · année mobile",
+    channels: ["Détail", "Sur place", "Appro. restaurants", "Agence"],
+    hoursSaved: "heures économisées",
+  },
+  footer: {
+    focus: "Spécialité",
+    focusValue: "Power BI pour les agences de vins sur ezFocus",
+    email: "Courriel",
+    phone: "Téléphone",
+    legal: "Cabinet-conseil indépendant, non affilié à ezFocus ni à Microsoft.",
+    canadian: "Fièrement canadiens, basés à MTL",
+  },
+  pbi: {
+    home: "Accueil",
+    demo: "Démo",
+    previewTitle: "Trois rapports en direct sur des données ezFocus fictives",
+    previewCta: "Ouvrir les exemples en direct",
+    pages: { command: "Tableau de bord agence", spotlight: "Tableau de bord fournisseur", tables: "Classements" },
+    mockData: "données fictives",
+    filters: "Filtres",
+    freeSample: "Échantillon gratuit",
+    freeSampleShort: "Échantillon",
+    guest: "Invité",
+    pagesPane: "Pages",
+    reportPages: "Pages du rapport",
+    collapsePages: "Réduire les pages",
+    expandPages: "Développer les pages",
+    collapseFilters: "Réduire les filtres",
+    expandFilters: "Développer les filtres",
+    closeFilters: "Fermer les filtres",
+    filtersOnPage: "Filtres de cette page",
+    resetAll: "Tout réinitialiser",
+    allMock: "Tous les chiffres sont des données ezFocus fictives.",
+    clearFilter: "Effacer le filtre",
+    clearNamed: (label: string) => `Effacer le filtre ${label}`,
+    is: "est",
+    listingType: "Type de produit",
+    status: "Statut",
+    supplier: "Fournisseur",
+    groupBy: "Regrouper par",
+    highlightSupplier: "Fournisseur en évidence",
+    all: "Tous",
+    statuses: { All: "Tous", Active: "Actif", Inactive: "Inactif" },
+    groupings: { suppliers: "Fournisseurs", brands: "Marques", countries: "Pays (vins)", segments: "Segments" },
+  },
+  sample: {
+    title: "Obtenir un échantillon gratuit",
+    intro:
+      "Parlez-nous un peu de vous et nous vous enverrons une version gratuite de ces modèles, prête à brancher sur vos données.",
+    name: "Nom",
+    company: "Entreprise",
+    email: "Courriel",
+    phone: "Téléphone",
+    sourcesQuestion: "D’où viennent vos données?",
+    selectAll: "Cochez toutes les réponses pertinentes.",
+    sources: { ezFocus: "ezFocus", "CRM tools": "Outils CRM", "Accounting software": "Logiciel comptable", Other: "Autre" },
+    otherLabel: "Autres sources de données",
+    otherPlaceholder: "Lesquelles?",
+    cancel: "Annuler",
+    sending: "Envoi…",
+    send: "Recevoir un échantillon",
+    thanks: (name: string) => `Merci${name ? `, ${name}` : ""}!`,
+    sent: (email: string) =>
+      `Nous vous enverrons votre échantillon gratuit${email ? ` à ${email}` : ""} sous peu, prêt à brancher sur vos données.`,
+    close: "Fermer",
+    errors: {
+      nameCompany: "Veuillez indiquer votre nom et votre entreprise.",
+      email: "Veuillez entrer une adresse courriel valide.",
+      phone: "Veuillez entrer un numéro de téléphone valide.",
+      sources: "Dites-nous d’où viennent vos données.",
+    },
+  },
+  toggle: { en: "English", fr: "Français" },
+};
+
+const DICTS: Record<Lang, Dictionary> = { en, fr };
+
+export const dict = (lang: Lang) => DICTS[lang];

@@ -3,59 +3,51 @@ import FreeSampleButton from "@/app/components/examples/FreeSample";
 import HeroCards from "@/app/components/HeroCards";
 import { Eyebrow, Hl, PillLink, pillClass } from "@/app/components/ui";
 import BookCallButton from "@/app/components/BookCall";
-
-const faqs = [
-  {
-    question: "Why do I need Power BI on top of ezFocus?",
-    answer:
-      "Power BI handles data much better than ezFocus, and lets us present it however you want. Having both together eliminates the need for you to format data manually.",
-  },
-  {
-    question: "How do you integrate with ezFocus?",
-    answer: "We use the ezFocus API to pull data in real time.",
-  },
-  {
-    question: "Do we need Power BI licenses?",
-    answer: "Yes. They cost about $14 per member.",
-  },
-  {
-    question: "How long does a project take?",
-    answer: "Usually around 1 to 2 months, depending on how many data sources and reports you need.",
-  },
-  {
-    question: "Can our suppliers see their own reports?",
-    answer: "Yes. You can give your suppliers view access, if you want to.",
-  },
-];
+import { getLang } from "@/app/lib/i18n/server";
+import { dict } from "@/app/lib/i18n/dictionaries";
 
 const wrap = "mx-auto w-full max-w-6xl px-4 sm:px-8";
 const h2 = "font-display text-3xl font-medium leading-tight tracking-tight sm:text-5xl";
 
-export default function Home() {
+// [before, accent, after] -> text with the accented word
+function Accented({ parts: [before, hl, after = ""] }: { parts: readonly [string, string, string?] }) {
+  return (
+    <>
+      {before}
+      <Hl>{hl}</Hl>
+      {after}
+    </>
+  );
+}
+
+export default async function Home() {
+  const lang = await getLang();
+  const d = dict(lang);
+  const t = d.home;
+  const [exLine1, exBefore, exHl, exAfter] = t.examplesTitle;
   return (
     <>
       {/* ---------- hero ---------- */}
       <section className={`${wrap} grid items-center gap-14 pb-10 pt-4 lg:grid-cols-2 lg:pb-12 lg:pt-6`}>
         <div className="flex flex-col gap-6">
-          <Eyebrow>ezFocus-to-Power BI specialists</Eyebrow>
+          <Eyebrow>{t.heroEyebrow}</Eyebrow>
           <h1 className="font-display text-4xl font-medium leading-[1.05] tracking-tight sm:text-6xl">
-            Automate data handling, focus on <Hl>decisions</Hl>
+            <Accented parts={t.heroTitle} />
           </h1>
           <p className="max-w-md text-base leading-relaxed text-muted sm:text-lg">
-            We&apos;re Power BI engineers specialised in helping Canadian wine &amp; spirit agencies save time on
-            data work.
+            {t.heroBody}
           </p>
           <div className="flex flex-wrap gap-3 pt-2">
-            <BookCallButton className={pillClass()}>Book a free call</BookCallButton>
+            <BookCallButton className={pillClass()}>{d.bookFreeCall}</BookCallButton>
             <PillLink href="/examples" variant="light">
-              See live examples
+              {t.seeExamples}
             </PillLink>
           </div>
         </div>
         <div className="flex flex-col gap-4">
-          <HeroCards />
+          <HeroCards lang={lang} />
           <p className="text-right text-xs font-medium">
-            <Hl>Seamlessly integrated</Hl> with ezFocus data
+            <Accented parts={t.integrated} />
           </p>
         </div>
       </section>
@@ -63,26 +55,24 @@ export default function Home() {
       {/* ---------- examples ---------- */}
       <section id="examples" className={`${wrap} scroll-mt-8 pb-10 pt-10 lg:pb-12 lg:pt-12`}>
         <div className="mx-auto flex max-w-3xl flex-col items-center gap-5 text-center">
-          <Eyebrow>Live examples</Eyebrow>
+          <Eyebrow>{t.examplesEyebrow}</Eyebrow>
           <h2 className={h2}>
-            Track your sales data{" "}
+            {exLine1}{" "}
             <span className="block">
-              exactly how you <Hl>dreamt it</Hl>.
+              <Accented parts={[exBefore, exHl, exAfter]} />
             </span>
           </h2>
           <p className="max-w-xl text-muted">
-            Check out three example templates below to see what we can do.{" "}
-            <span className="block">
-              We can start from there, or build custom visuals exactly how you want them.
-            </span>
+            {t.examplesBody[0]}{" "}
+            <span className="block">{t.examplesBody[1]}</span>
           </p>
         </div>
         <div className="mx-auto mt-12 max-w-4xl">
-          <PbiPreview />
+          <PbiPreview t={d.pbi} />
         </div>
         <div className="mt-8 flex justify-center">
           <FreeSampleButton className={pillClass()}>
-            Get a free sample
+            {t.freeSample}
           </FreeSampleButton>
         </div>
       </section>
@@ -92,11 +82,11 @@ export default function Home() {
         <div className="flex flex-col gap-5">
           <Eyebrow>FAQ</Eyebrow>
           <h2 className={h2}>
-            Common <Hl>questions</Hl>
+            <Accented parts={t.faqTitle} />
           </h2>
         </div>
         <div className="flex flex-col">
-          {faqs.map((f) => (
+          {t.faqs.map((f) => (
             <details key={f.question} className="group border-b border-border py-5">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-medium [&::-webkit-details-marker]:hidden">
                 {f.question}
@@ -112,15 +102,14 @@ export default function Home() {
       <section className={`${wrap} pb-16 lg:pb-20`}>
         <div className="grid items-center gap-6 rounded-2xl bg-cream p-6 sm:p-10 lg:grid-cols-2 lg:gap-12">
           <div className="flex flex-col items-start gap-5">
-            <Eyebrow>Free 30-minute call</Eyebrow>
+            <Eyebrow>{t.ctaEyebrow}</Eyebrow>
             <h2 className={h2}>
-              Let&apos;s get your data <Hl>sorted</Hl>.
+              <Accented parts={t.ctaTitle} />
             </h2>
-            <BookCallButton className={pillClass()}>Book a free call</BookCallButton>
+            <BookCallButton className={pillClass()}>{d.bookFreeCall}</BookCallButton>
           </div>
           <p className="text-muted lg:text-lg">
-            Book a 30-minute intro call to see what we can do. Send us info on your data sources and KPIs to save
-            time on the call, so we can draw up mockups beforehand.
+            {t.ctaBody}
           </p>
         </div>
       </section>

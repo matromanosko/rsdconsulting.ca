@@ -2,8 +2,10 @@
 // the measure. Scope: one supplier inside "Your Agency" (the visual-level
 // Agent filter); competitor and rank figures read the whole market.
 
-import { DEMO_TODAY, LISTING_LABELS, LISTING_SHORT, ListingType, NO_FILTER, OUR_AGENT, Row, RowFilter, getRows, matches } from "./data";
-import { N, dec, divide, esc, groupBy, int, ordinal, parseInsertion, pct, spct, sum } from "./format";
+import type { Lang } from "@/app/lib/i18n/config";
+import { DEMO_TODAY, ListingType, NO_FILTER, OUR_AGENT, Row, RowFilter, getRows, matches } from "./data";
+import { N, cssNum, currentLang, dec, divide, esc, groupBy, int, money, ordinal, parseInsertion, pct, short, spct, sum, withLang } from "./format";
+import { dash, listingLabels, listingShort, term } from "./i18n";
 
 // ------------------------------- 0 · CONFIG ---------------------------------
 const FONT = "Segoe UI,Arial,sans-serif";
@@ -53,7 +55,8 @@ function aggregate(rs: Row[]): Agg {
 
 // a percentage off a near-zero prior year is arithmetic, not information
 function deltaText(ty: number, ly: number, v: N, base: number) {
-  if (ly < base) return ly <= 0 && ty > 0 ? "new" : "n/m";
+  const t = dash(currentLang()).spotlight;
+  if (ly < base) return ly <= 0 && ty > 0 ? t.new : t.nm;
   return spct(v, 0);
 }
 function deltaColor(ly: number, v: N, base: number | null) {
@@ -87,7 +90,16 @@ function objectivesFor(rs: Row[]) {
   return { ship: Math.round(ship), shipObj: Math.round(shipObj), salesObj: Math.round(salesObj) };
 }
 
-export function buildSupplierSpotlight(supplierName: string, filter: RowFilter = NO_FILTER): string {
+export function buildSupplierSpotlight(supplierName: string, filter: RowFilter = NO_FILTER, lang: Lang = "en"): string {
+  return withLang(lang, () => build(supplierName, filter, lang));
+}
+
+function build(supplierName: string, filter: RowFilter, lang: Lang): string {
+  const tr = dash(lang);
+  const t = tr.spotlight;
+  const T = (v: string) => term(lang, v);
+  const LISTING_LABELS = listingLabels(lang);
+  const LISTING_SHORT = listingShort(lang);
   const all = getRows();
   const scope = all.filter((r) => r.agent === OUR_AGENT && r.supplier === supplierName && matches(filter)(r));
 
@@ -96,9 +108,9 @@ export function buildSupplierSpotlight(supplierName: string, filter: RowFilter =
   const newCut = new Date(today.getFullYear(), today.getMonth() - NEW_MONTHS, today.getDate());
   const meName = supplierName;
   const supName = esc(supplierName);
-  const agentLbl = OUR_AGENT;
-  const statLbl = filter.status === "All" ? "All statuses" : filter.status;
-  const typLbl = filter.type === "All" ? "All listing types" : LISTING_LABELS[filter.type];
+  const agentLbl = T(OUR_AGENT);
+  const statLbl = filter.status === "All" ? t.allStatuses : tr.status[filter.status];
+  const typLbl = filter.type === "All" ? t.allTypes : LISTING_LABELS[filter.type];
 
   // --------------------------- 2 · HEADLINE TOTALS ----------------------------
   const D_TY = sum(scope, (r) => r.d);
@@ -117,8 +129,7 @@ export function buildSupplierSpotlight(supplierName: string, filter: RowFilter =
   const velT = divide(RYT, StT);
   const DVar = divide(D_TY - D_LY, D_LY);
   const RYVar = divide(RYT - RYL, RYL);
-  const DHero =
-    D_TY >= 1000000 ? "$" + dec(D_TY / 1000000, 2) + "M" : D_TY >= 1000 ? "$" + int(D_TY / 1000) + "K" : "$" + int(D_TY);
+  const DHero = D_TY >= 1000000 ? short(D_TY, "M", 2, true) : D_TY >= 1000 ? short(D_TY, "K", 0, true) : money(D_TY);
 
   // ---------------- 3 · MARKET TABLES + SUPPLIER RANKS (shared) ---------------
   const catSales = [...groupBy(scope, (r) => r.category).entries()]
@@ -229,32 +240,32 @@ export function buildSupplierSpotlight(supplierName: string, filter: RowFilter =
         (r.c1 > 0 ? " h1" : "") + (r.c2 > 0 ? " h2" : "") +
         (r.c3 > 0 ? " h3" : "") + (r.c4 > 0 ? " h4" : "");
       const vars = `--o1:${x.o1};--v1:${-Math.round(r.c1)};--v2:${-Math.round(r.c2)};--v3:${-Math.round(r.c3)};--v4:${-Math.round(r.c4)};`;
-      const hov = `R6 ${int(r.r6)} cs (${x.r6v === null ? "n/a" : spct(x.r6v, 0)}) · R1 ${int(r.r1)} cs · price $${dec(r.px, 2)}`;
+      const hov = t.hover(int(r.r6), x.r6v === null ? tr.na : spct(x.r6v, 0), int(r.r1), money(r.px, 2));
       const rk =
         x.cr === null
-          ? "<span class='sof'>unranked</span>"
-          : `<span class='srk'>#${int(x.cr)}</span><span class='sof'>of ${int(x.cn)}</span>`;
+          ? `<span class='sof'>${t.unranked}</span>`
+          : `<span class='srk'>#${int(x.cr)}</span><span class='sof'>${t.of} ${int(x.cn)}</span>`;
       return (
         `<div class='${cls}' style='${vars}' title='${esc(hov)}'>` +
         `<div class='c nm'><div class='nmw'><div class='nm1'>${esc(r.desc)}</div>` +
         `<div class='nm2'><span class='tchip t${r.type}'>${LISTING_SHORT[r.type]}</span>` +
-        (r.status !== "Active" ? "<span class='tchip tI'>INACTIVE</span>" : "") +
+        (r.status !== "Active" ? `<span class='tchip tI'>${t.inactive}</span>` : "") +
         rk +
-        (x.fNew ? "<span class='flg fN'>NEW</span>" : "") +
-        (x.fDorm ? "<span class='flg fZ'>NO R1</span>" : "") +
+        (x.fNew ? `<span class='flg fN'>${t.newFlag}</span>` : "") +
+        (x.fDorm ? `<span class='flg fZ'>${t.noR1}</span>` : "") +
         (x.fSharp ? "<span class='flg fS'>&#9660; 25%+</span>" : "") +
         "</div></div></div>" +
         `<div class='c n3'><div class='v'>${int(r.r3)}</div><div class='dv' style='color:${deltaColor(r.r3L, x.r3v, MIN_BASE)};'>${deltaText(r.r3, r.r3L, x.r3v, MIN_BASE)}</div></div>` +
         `<div class='c n3'><div class='v'>${int(r.yt)}</div><div class='dv' style='color:${deltaColor(r.ytL, x.ytv, MIN_BASE)};'>${deltaText(r.yt, r.ytL, x.ytv, MIN_BASE)}</div></div>` +
         `<div class='c n4'><div class='v strong'>${int(r.ry)}</div><div class='dv' style='color:${deltaColor(r.ryL, x.ryv, MIN_BASE)};'>${deltaText(r.ry, r.ryL, x.ryv, MIN_BASE)}</div></div>` +
-        `<div class='c n5'><div class='v'>${int(r.stT)}</div><div class='dv sub'>${r.stT > 0 ? dec(x.vel, 1) + " cs/pt" : "&middot;"}</div></div>` +
+        `<div class='c n5'><div class='v'>${int(r.stT)}</div><div class='dv sub'>${r.stT > 0 ? dec(x.vel, 1) + " " + t.csPerPt : "&middot;"}</div></div>` +
         chCells(r.c1, r.c2, r.c3, r.c4) +
-        `<div class='c n6'><div class='v strong'>$${int(r.d)}</div><div class='dv' style='color:${deltaColor(r.dL, x.dv, MIN_BASE_D)};'>${deltaText(r.d, r.dL, x.dv, MIN_BASE_D)}</div></div>` +
+        `<div class='c n6'><div class='v strong'>${money(r.d)}</div><div class='dv' style='color:${deltaColor(r.dL, x.dv, MIN_BASE_D)};'>${deltaText(r.d, r.dL, x.dv, MIN_BASE_D)}</div></div>` +
         "</div>"
       );
     })
     .join("");
-  const skuEmpty = nAll === 0 ? "<div class='empty'>No SKUs in this selection.</div>" : "";
+  const skuEmpty = nAll === 0 ? `<div class='empty'>${t.noSkus}</div>` : "";
 
   // ------------------------- 5 · COMPETITOR TABLE -----------------------------
   type RenderRow = Agg & { f: string; ki: number; rk: number; out: boolean };
@@ -294,14 +305,14 @@ export function buildSupplierSpotlight(supplierName: string, filter: RowFilter =
         `<div class='${cls}' style='${vars}'>` +
         `<div class='c nm'><span class='srn${x.out ? " outn" : ""}'>${int(x.rk)}</span>` +
         `<div class='nmw'><div class='nm1'>${esc(x.f)}</div>` +
-        `<div class='nm2'><span class='sof'>${int(x.n)} SKUs` +
-        (x.out ? ` &middot; outside the top ${int(SUP_TOP)}` : "") +
+        `<div class='nm2'><span class='sof'>${int(x.n)} ${tr.skuCount(x.n)}` +
+        (x.out ? ` &middot; ${t.outsideTop(int(SUP_TOP))}` : "") +
         "</span></div></div></div>" +
         `<div class='c n3'><div class='v'>${int(x.r3)}</div><div class='dv' style='color:${deltaColor(x.r3L, r3v, MIN_BASE)};'>${deltaText(x.r3, x.r3L, r3v, MIN_BASE)}</div></div>` +
         `<div class='c n3'><div class='v'>${int(x.yt)}</div><div class='dv' style='color:${deltaColor(x.ytL, ytv, null)};'>${deltaText(x.yt, x.ytL, ytv, MIN_BASE)}</div></div>` +
         `<div class='c n4'><div class='v strong'>${int(x.ry)}</div><div class='dv' style='color:${deltaColor(x.ryL, ryv, null)};'>${deltaText(x.ry, x.ryL, ryv, MIN_BASE)}</div></div>` +
         chCells(x.c1, x.c2, x.c3, x.c4) +
-        `<div class='c n6'><div class='v strong'>$${int(x.d)}</div><div class='dv' style='color:${deltaColor(x.dL, dvv, null)};'>${deltaText(x.d, x.dL, dvv, MIN_BASE_D)}</div></div>` +
+        `<div class='c n6'><div class='v strong'>${money(x.d)}</div><div class='dv' style='color:${deltaColor(x.dL, dvv, null)};'>${deltaText(x.d, x.dL, dvv, MIN_BASE_D)}</div></div>` +
         "</div>"
       );
     })
@@ -310,10 +321,10 @@ export function buildSupplierSpotlight(supplierName: string, filter: RowFilter =
   // -------------------------- 6 · MOMENTUM STRIP ------------------------------
   const momentum = (
     [
-      ["R1", "last period", R1T, R1L],
-      ["R3", "3 periods", R3T, R3L],
-      ["R6", "6 periods", R6T, R6L],
-      ["YTD", "year to date", YTT, YTL],
+      ["R1", t.momentum[0], R1T, R1L],
+      ["R3", t.momentum[1], R3T, R3L],
+      ["R6", t.momentum[2], R6T, R6L],
+      [tr.ytd, t.momentum[3], YTT, YTL],
     ] as const
   )
     .map(([lbl, sub, t, l]) => {
@@ -323,7 +334,7 @@ export function buildSupplierSpotlight(supplierName: string, filter: RowFilter =
         "<div class='mt'>" +
         `<div class='mtl'>${lbl}<span class='mts'>${sub}</span></div>` +
         `<div class='mtr'><span class='mtv num'>${int(t)}</span>` +
-        `<span class='mtd num' style='color:${c};'>${v === null ? "n/a" : spct(v)}</span></div>` +
+        `<span class='mtd num' style='color:${c};'>${v === null ? tr.na : spct(v)}</span></div>` +
         "</div>"
       );
     })
@@ -331,10 +342,10 @@ export function buildSupplierSpotlight(supplierName: string, filter: RowFilter =
 
   // ---------------------- 7 · CONTEXT RAIL: CHANNELS + PRICE ------------------
   const chTbl: [string, number, number][] = [
-    ["Retail", sum(scope, (r) => r.c1), sum(scope, (r) => r.c1L)],
-    ["On premise", sum(scope, (r) => r.c2), sum(scope, (r) => r.c2L)],
-    ["Restaurant supply", sum(scope, (r) => r.c3), sum(scope, (r) => r.c3L)],
-    ["Agency", sum(scope, (r) => r.c4), sum(scope, (r) => r.c4L)],
+    [tr.channels[0], sum(scope, (r) => r.c1), sum(scope, (r) => r.c1L)],
+    [tr.channels[1], sum(scope, (r) => r.c2), sum(scope, (r) => r.c2L)],
+    [tr.channels[2], sum(scope, (r) => r.c3), sum(scope, (r) => r.c3L)],
+    [tr.channels[3], sum(scope, (r) => r.c4), sum(scope, (r) => r.c4L)],
   ];
   const chTot = sum(chTbl, (c) => c[1]);
   const chRows = [...chTbl]
@@ -344,7 +355,7 @@ export function buildSupplierSpotlight(supplierName: string, filter: RowFilter =
       const dv = divide(t - l, l);
       return (
         `<div class='crow'><div class='clab'>${lbl}</div>` +
-        `<div class='cbar'><div class='cfill' style='width:${dec((sh ?? 0) * 100, 1, false)}%;'></div></div>` +
+        `<div class='cbar'><div class='cfill' style='width:${cssNum((sh ?? 0) * 100)}%;'></div></div>` +
         `<div class='cvol num'>${int(t)}</div>` +
         `<div class='cpc num'>${pct(sh, 0)}</div>` +
         `<div class='cdv num' style='color:${deltaColor(l, dv, null)};'>${dv === null ? "&middot;" : spct(dv, 0)}</div></div>`
@@ -359,12 +370,12 @@ export function buildSupplierSpotlight(supplierName: string, filter: RowFilter =
   const pxMkt = divide(sum(mktCat, (r) => r.ry * r.px), sum(mktCat, (r) => r.ry));
   const pxIdx = divide(pxTY, pxMkt);
   const priceRows =
-    `<div class='prow'><span class='plab'>Avg price</span><span class='pval num'>$${dec(pxTY, 2)}</span>` +
+    `<div class='prow'><span class='plab'>${t.avgPrice}</span><span class='pval num'>${money(pxTY, 2)}</span>` +
     `<span class='pdv num' style='color:${pxVar === null ? FAINT : pxVar >= 0 ? POS : NEG};'>${pxVar === null ? "&middot;" : spct(pxVar, 0)}</span></div>` +
-    `<div class='prow'><span class='plab'>Category avg</span><span class='pval num'>$${dec(pxMkt, 2)}</span>` +
-    `<span class='pdv num' style='color:${MUTE};'>idx ${int((pxIdx ?? 0) * 100)}</span></div>` +
-    `<div class='prow'><span class='plab'>Velocity</span><span class='pval num'>${dec(velT, 1)}</span>` +
-    `<span class='pdv num' style='color:${MUTE};'>cs / point</span></div>`;
+    `<div class='prow'><span class='plab'>${t.catAvg}</span><span class='pval num'>${money(pxMkt, 2)}</span>` +
+    `<span class='pdv num' style='color:${MUTE};'>${t.idx} ${int((pxIdx ?? 0) * 100)}</span></div>` +
+    `<div class='prow'><span class='plab'>${t.velocity}</span><span class='pval num'>${dec(velT, 1)}</span>` +
+    `<span class='pdv num' style='color:${MUTE};'>${t.csPerPoint}</span></div>`;
 
   // ----------------------- 7b · OBJECTIVES (rail) -----------------------------
   const objStart = new Date(today.getFullYear() - (today.getMonth() + 1 < OBJ_FY_MONTH ? 1 : 0), OBJ_FY_MONTH - 1, 1);
@@ -373,23 +384,23 @@ export function buildSupplierSpotlight(supplierName: string, filter: RowFilter =
   const pace = (Math.round((today.getTime() - objStart.getTime()) / dayMs) + 1) / Math.round((objEnd.getTime() - objStart.getTime()) / dayMs);
   const obj = objectivesFor(scope);
   const objTbl: [string, string, number, number, (x: number) => string, string, number | null][] = [
-    ["Shipments", "shipped YTD", obj.ship, obj.shipObj, int, " cs", pace],
-    ["Sales $", "sales $ RY", D_TY, obj.salesObj, (x) => "$" + int(x), "", null],
+    [t.shipments, t.shippedYtd, obj.ship, obj.shipObj, int, " " + tr.cs, pace],
+    [tr.sales, t.salesRy, D_TY, obj.salesObj, (x) => money(x), "", null],
   ];
   const objRows = objTbl
     .map(([lbl, cap, act, goal, fmt, unit, pc0]) => {
       const pc = divide(act, goal);
       const col =
         pc === null ? FAINT : pc0 === null ? (pc >= 1 ? POS : INK) : pc >= pc0 ? POS : pc >= pc0 - DELTA_SIG ? MUTE : NEG;
-      const w = pc === null ? "0" : dec(Math.min(pc, 1) * 100, 1, false);
+      const w = pc === null ? "0" : cssNum(Math.min(pc, 1) * 100);
       return (
         "<div class='ob'>" +
         `<div class='obh'><span class='plab'>${lbl}</span>` +
         `<span class='obp num' style='color:${col};'>${pc === null ? "&mdash;" : pct(pc, 0)}</span></div>` +
         `<div class='obar'><div class='obf' style='width:${w}%;background:${col};'></div>` +
-        (pc0 !== null ? `<div class='obm' style='left:${dec(pc0 * 100, 1, false)}%;' title='Expected pace'></div>` : "") +
+        (pc0 !== null ? `<div class='obm' style='left:${cssNum(pc0 * 100)}%;' title='${t.expectedPace}'></div>` : "") +
         "</div>" +
-        `<div class='obs num'>${fmt(act)}${unit} ${cap} &middot; goal ${fmt(goal)}${unit}</div>` +
+        `<div class='obs num'>${fmt(act)}${unit} ${cap} &middot; ${t.goal} ${fmt(goal)}${unit}</div>` +
         "</div>"
       );
     })
@@ -572,30 +583,30 @@ export function buildSupplierSpotlight(supplierName: string, filter: RowFilter =
 
   const catDD =
     "<div class='dd ddc'>" +
-    "<div class='ddb'><span class='ddl'>Category</span><span class='ddv'><span class='o sk1'>All</span>" +
-    catIdxList.map(([c, i]) => `<span class='o ct${i}'>${esc(c)}</span>`).join("") +
+    `<div class='ddb'><span class='ddl'>${t.categoryDD}</span><span class='ddv'><span class='o sk1'>${t.allFem}</span>` +
+    catIdxList.map(([c, i]) => `<span class='o ct${i}'>${esc(T(c))}</span>`).join("") +
     "</span><span class='car'>&#9662;</span></div>" +
-    "<div class='ddm'><div class='ddi'><label for='sk1'>All categories</label>" +
-    catIdxList.map(([c, i]) => `<label for='ct${i}' title='${esc(c)}'>${esc(c)}</label>`).join("") +
+    `<div class='ddm'><div class='ddi'><label for='sk1'>${t.allCategories}</label>` +
+    catIdxList.map(([c, i]) => `<label for='ct${i}' title='${esc(T(c))}'>${esc(T(c))}</label>`).join("") +
     "</div></div>" +
     "</div>";
   const typeDD = typeOn
     ? "<div class='dd ddt segt'>" +
-      "<div class='ddb'><span class='ddl'>Type</span><span class='ddv'><span class='o ty0'>All</span>" +
+      `<div class='ddb'><span class='ddl'>${t.typeDD}</span><span class='ddv'><span class='o ty0'>${t.all}</span>` +
       typeIdxList.map(([t, j]) => `<span class='o ty${j}'>${t}</span>`).join("") +
       "</span><span class='car'>&#9662;</span></div>" +
-      "<div class='ddm'><div class='ddi'><label for='ty0'>All types</label>" +
+      `<div class='ddm'><div class='ddi'><label for='ty0'>${t.allTypesDD}</label>` +
       typeIdxList.map(([t, j]) => `<label for='ty${j}' title='${LISTING_LABELS[t as ListingType]}'>${LISTING_SHORT[t as ListingType]}<span class='cnt'>${int(typeCount.get(t) ?? 0)}</span></label>`).join("") +
       "</div></div>" +
       "</div>"
     : "";
   const chanDD =
     "<div class='dd ddh'>" +
-    "<div class='ddb'><span class='ddl'>Channel</span><span class='ddv'><span class='o ch0'>All</span>" +
+    `<div class='ddb'><span class='ddl'>${t.channelDD}</span><span class='ddv'><span class='o ch0'>${t.all}</span>` +
     chOpt.map(([h, l]) => `<span class='o ch${h}'>${l}</span>`).join("") +
     "</span><span class='car'>&#9662;</span></div>" +
-    "<div class='ddm'><div class='ddi'><label for='ch0'>All channels</label>" +
-    chOpt.map(([h, l, v]) => `<label for='ch${h}'>${l}<span class='cnt'>${int(v)} cs</span></label>`).join("") +
+    `<div class='ddm'><div class='ddi'><label for='ch0'>${t.allChannels}</label>` +
+    chOpt.map(([h, l, v]) => `<label for='ch${h}'>${l}<span class='cnt'>${int(v)} ${tr.cs}</span></label>`).join("") +
     "</div></div>" +
     "</div>";
 
@@ -603,7 +614,7 @@ export function buildSupplierSpotlight(supplierName: string, filter: RowFilter =
   const header =
     "<div style='display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex:none;padding:0 2px 6px 2px;min-width:0;'>" +
     "<div style='display:flex;align-items:baseline;gap:9px;min-width:0;'>" +
-    "<span class='eyebrow' style='flex:none;'>Supplier spotlight</span>" +
+    `<span class='eyebrow' style='flex:none;'>${t.title}</span>` +
     `<span style='font:800 19px ${F};color:${INK};letter-spacing:-.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;'>${supName}</span>` +
     "</div>" +
     "<div class='hpills' style='white-space:nowrap;flex:none;'>" +
@@ -613,68 +624,69 @@ export function buildSupplierSpotlight(supplierName: string, filter: RowFilter =
 
   const heroVar = (v: N) =>
     `<span class='hdv' style='color:${v === null ? FAINT : v >= 0 ? POS : NEG};'>` +
-    (v === null ? "n/a" : (v >= 0 ? "&#9650; " : "&#9660; ") + pct(Math.abs(v))) +
+    (v === null ? tr.na : (v >= 0 ? "&#9650; " : "&#9660; ") + pct(Math.abs(v))) +
     "</span>";
   const hero =
     "<div class='hero' style='min-height:76px;'>" +
     `<div class='hcard' style='flex:1.45;border-left:4px solid ${INK};'>` +
-    "<div class='eyebrow'>Sales $ &middot; rolling year</div>" +
+    `<div class='eyebrow'>${t.salesRolling}</div>` +
     `<div class='hrow'><span class='hbig'>${DHero}</span>${heroVar(DVar)}</div>` +
     "</div>" +
     `<div class='hcard' style='flex:1.45;border-left:4px solid ${C2};'>` +
-    "<div class='eyebrow'>9L cases &middot; rolling year</div>" +
+    `<div class='eyebrow'>${t.casesRolling}</div>` +
     `<div class='hrow'><span class='hbig'>${int(RYT)}</span>${heroVar(RYVar)}</div>` +
     "</div>" +
     `<div class='hcard' style='flex:1.5;border-left:4px solid ${C3};'>` +
-    "<div class='eyebrow'>Rank by sales $</div>" +
+    `<div class='eyebrow'>${t.rankBySales}</div>` +
     `<div class='rline' style='margin-top:3px;'><span class='rbig'>${int(paysRank)}${ordinal(paysRank)}</span>` +
-    `<span class='rtxt'>in ${esc(topPays)} &middot; of ${int(paysSuppN)}</span></div>` +
+    `<span class='rtxt'>${t.rankIn(esc(T(topPays)), int(paysSuppN))}</span></div>` +
     `<div class='rline'><span class='rbig'>${int(catRank)}${ordinal(catRank)}</span>` +
-    `<span class='rtxt'>in ${esc(topCat)} &middot; of ${int(catSuppN)}</span></div>` +
+    `<span class='rtxt'>${t.rankIn(esc(T(topCat)), int(catSuppN))}</span></div>` +
     "</div>" +
     `<div class='hcard' style='flex:1;border-left:4px solid ${CO};'>` +
-    "<div class='eyebrow'>SKUs</div>" +
+    `<div class='eyebrow'>${tr.skus}</div>` +
     `<div class='ksplits' style='margin-top:3px;'>${skuMix}</div>` +
     "</div>" +
     "</div>";
 
+  const headChannels = t.head.channels.map((c, i) => `<div class='c nc nc${i + 1}'>${c}</div>`).join("");
   const tableCard =
     "<div class='card' style='flex:1 1 auto;min-height:0;display:flex;flex-direction:column;'>" +
     "<div style='display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:6px;flex:none;flex-wrap:wrap;row-gap:4px;'>" +
     "<div style='display:flex;align-items:center;gap:6px;min-width:0;flex-wrap:wrap;row-gap:4px;'>" +
-    "<div class='seg segv'><label for='vwP'>Products</label><label for='vwC'>Competitors</label></div>" +
+    `<div class='seg segv'><label for='vwP'>${t.products}</label><label for='vwC'>${t.competitors}</label></div>` +
     catDD +
     typeDD +
     chanDD +
     "</div>" +
     "<span class='eyebrow'>" +
-    `<span class='capP'>${capped ? `Top ${int(nAll)} of ${int(nCodes)} SKUs` : `${int(nAll)} SKUs &middot; 9L cases`}</span>` +
-    `<span class='capC'>Top ${int(SUP_TOP)} of ${int(allN)} suppliers &middot; all agents</span>` +
+    `<span class='capP'>${capped ? t.topOf(int(nAll), int(nCodes), tr.skuCount(nCodes)) : t.skusCases(int(nAll))}</span>` +
+    `<span class='capC'>${t.topOf(int(SUP_TOP), int(allN), t.suppliersAllAgents)}</span>` +
     "</span>" +
     "</div>" +
-    "<div class='skhd thP'><div class='c nm'>Product</div><div class='c n3'>R3</div><div class='c n3'>YTD</div>" +
-    "<div class='c n4'>RY 9L</div><div class='c n5'>Stores</div>" +
-    "<div class='c nc nc1'>Retail</div><div class='c nc nc2'>On prem</div><div class='c nc nc3'>Rest. supply</div><div class='c nc nc4'>Agency</div>" +
-    "<div class='c n6'>Sales $ RY</div></div>" +
-    "<div class='skhd thC'><div class='c nm'>Supplier</div><div class='c n3'>R3</div><div class='c n3'>YTD</div>" +
-    "<div class='c n4'>RY 9L</div>" +
-    "<div class='c nc nc1'>Retail</div><div class='c nc nc2'>On prem</div><div class='c nc nc3'>Rest. supply</div><div class='c nc nc4'>Agency</div>" +
-    "<div class='c n6'>Sales $ RY</div></div>" +
+    `<div class='skhd thP'><div class='c nm'>${t.head.product}</div><div class='c n3'>${t.head.r3}</div><div class='c n3'>${t.head.ytd}</div>` +
+    `<div class='c n4'>${t.head.ry9l}</div><div class='c n5'>${t.head.stores}</div>` +
+    headChannels +
+    `<div class='c n6'>${t.head.salesRy}</div></div>` +
+    `<div class='skhd thC'><div class='c nm'>${t.head.supplier}</div><div class='c n3'>${t.head.r3}</div><div class='c n3'>${t.head.ytd}</div>` +
+    `<div class='c n4'>${t.head.ry9l}</div>` +
+    headChannels +
+    `<div class='c n6'>${t.head.salesRy}</div></div>` +
     `<div class='scroll'><div class='skl'>${skuRows}${supRows}</div>${skuEmpty}</div>` +
     "</div>";
 
   const rail =
     "<div class='rail'>" +
     "<div class='card' style='flex:1 1 auto;min-height:0;display:flex;flex-direction:column;overflow:hidden;'>" +
-    "<div class='eyebrow' style='margin-bottom:4px;'>Channel mix &middot; 9L cases RY TY</div>" +
+    `<div class='eyebrow' style='margin-bottom:4px;'>${t.channelMix}</div>` +
     chRows +
     `<div style='margin-top:7px;'>${priceRows}</div>` +
-    "<div class='sof' style='margin-top:6px;line-height:1.35;'>Share is of this supplier&#39;s own channel volume; delta is vs LY.</div>" +
+    `<div class='sof' style='margin-top:6px;line-height:1.35;'>${t.shareNote}</div>` +
     "</div>" +
     "<div class='card' style='flex:none;'>" +
-    `<div class='eyebrow' style='margin-bottom:2px;'>Objectives &middot; ${pct(pace, 0)} of year elapsed</div>` +
+    `<div class='eyebrow' style='margin-bottom:2px;'>${t.objectives(pct(pace, 0))}</div>` +
     objRows +
-    `<div class='sof' style='margin-top:3px;'>Depletion RY ${int(RYT)} 9L cs &middot; marker = expected pace</div>` +
+    `<div class='sof' style='margin-top:3px;'>${t.depletion(int(RYT))}</div>` +
     "</div>" +
     "</div>";
 

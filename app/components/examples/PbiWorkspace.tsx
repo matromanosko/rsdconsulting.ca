@@ -6,7 +6,11 @@ import { FreeSampleDialog } from "./FreeSample";
 import ReportSkeleton from "./ReportSkeleton";
 import { Mark } from "@/app/components/ui";
 import BookCallButton from "@/app/components/BookCall";
-import { LISTING_LABELS } from "@/app/lib/dashboards/listings";
+import LangToggle from "@/app/components/LangToggle";
+import { listingLabels } from "@/app/lib/dashboards/i18n";
+import type { Lang } from "@/app/lib/i18n/config";
+import type { Dictionary } from "@/app/lib/i18n/dictionaries";
+import { useDict, useLang } from "@/app/lib/i18n/LangProvider";
 import { renderReportPage } from "@/app/examples/actions";
 import {
   GROUPINGS,
@@ -22,24 +26,13 @@ import {
 // bar, pages pane, canvas fit to the page and a filters pane. Changing a
 // filter re-renders that page on the server.
 
-const PAGES: { id: PageId; label: string }[] = [
-  { id: "command", label: "Agency KPI Dashboard" },
-  { id: "spotlight", label: "Supplier Dashboard" },
-  { id: "tables", label: "Ranked tables" },
-];
+const PAGES: { id: PageId }[] = [{ id: "command" }, { id: "spotlight" }, { id: "tables" }];
 
 // design size of each page, as set in the report
 const SIZES: Record<PageId, { width: number; height: number; maxScale: number }> = {
   command: { width: 1280, height: 720, maxScale: 1.25 },
   spotlight: { width: 1280, height: 720, maxScale: 1.25 },
   tables: { width: 900, height: 500, maxScale: 1.4 },
-};
-
-const GROUPING_LABELS: Record<(typeof GROUPINGS)[number], string> = {
-  suppliers: "Suppliers",
-  brands: "Brands",
-  countries: "Wine countries",
-  segments: "Segments",
 };
 
 // what the filters pane shows behind the gate
@@ -54,25 +47,31 @@ type FilterDef = { key: string; label: string; kind: "list" | "select"; options:
 
 const plain = (values: readonly string[]): Option[] => values.map((v) => ({ value: v, label: v }));
 
-function filterDefs(page: PageId, boot: ReportBoot | null): FilterDef[] {
+function filterDefs(page: PageId, boot: ReportBoot | null, t: Dictionary["pbi"], lang: Lang): FilterDef[] {
+  const labels = listingLabels(lang);
   const listing: FilterDef = {
     key: "type",
-    label: "Listing type",
+    label: t.listingType,
     kind: "list",
-    options: LISTING_TYPES.map((t) => ({ value: t, label: t === "All" ? "All" : LISTING_LABELS[t] })),
+    options: LISTING_TYPES.map((v) => ({ value: v, label: v === "All" ? t.all : labels[v] })),
   };
-  const status: FilterDef = { key: "status", label: "Status", kind: "list", options: plain(STATUSES) };
+  const status: FilterDef = {
+    key: "status",
+    label: t.status,
+    kind: "list",
+    options: STATUSES.map((v) => ({ value: v, label: t.statuses[v] })),
+  };
   if (page === "command") return [listing, status];
   if (page === "spotlight")
-    return [{ key: "supplier", label: "Supplier", kind: "select", options: plain(boot?.suppliers ?? []) }, listing, status];
+    return [{ key: "supplier", label: t.supplier, kind: "select", options: plain(boot?.suppliers ?? []) }, listing, status];
   return [
     {
       key: "grouping",
-      label: "Group by",
+      label: t.groupBy,
       kind: "list",
-      options: GROUPINGS.map((g) => ({ value: g, label: GROUPING_LABELS[g] })),
+      options: GROUPINGS.map((g) => ({ value: g, label: t.groupings[g] })),
     },
-    { key: "highlight", label: "Highlight supplier", kind: "select", options: plain(boot?.marketSuppliers ?? []) },
+    { key: "highlight", label: t.highlightSupplier, kind: "select", options: plain(boot?.marketSuppliers ?? []) },
   ];
 }
 
@@ -202,20 +201,23 @@ function FilterCard({
   onChange: (v: string) => void;
   onClear: () => void;
 }) {
+  const t = useDict().pbi;
   const current = def.options.find((o) => o.value === value)?.label ?? (value || "—");
   return (
     <fieldset className="rounded-[2px] border border-[#E1DFDD] bg-white" disabled={disabled}>
       <div className="flex items-start gap-2 px-3 pt-2">
         <div className="min-w-0 flex-1">
           <legend className="text-xs font-semibold">{def.label}</legend>
-          <p className="truncate text-xs text-[#605E5C]">is {current}</p>
+          <p className="truncate text-xs text-[#605E5C]">
+            {t.is} {current}
+          </p>
         </div>
         {!isDefault && (
           <button
             type="button"
             onClick={onClear}
-            title="Clear filter"
-            aria-label={`Clear ${def.label} filter`}
+            title={t.clearFilter}
+            aria-label={t.clearNamed(def.label)}
             className="-mr-1 flex h-6 w-6 items-center justify-center rounded-[2px] text-[#605E5C] hover:bg-[#F3F2F1] hover:text-[#252423]"
           >
             <Icon d={ICONS.eraser} className="h-3.5 w-3.5" />
@@ -261,6 +263,9 @@ function FilterCard({
 /* ---------- workspace ---------- */
 
 export default function PbiWorkspace({ viewer, boot }: { viewer: string | null; boot: ReportBoot | null }) {
+  const lang = useLang();
+  const d = useDict();
+  const t = d.pbi;
   const locked = !boot;
   const [page, setPage] = useState<PageId>("command");
   const [filters, setFilters] = useState<PageFilters>(boot?.defaults ?? LOCKED_FILTERS);
@@ -304,8 +309,7 @@ export default function PbiWorkspace({ viewer, boot }: { viewer: string | null; 
     };
   }, [key, locked, cache]);
 
-  const current = PAGES.find((p) => p.id === page)!;
-  const defs = filterDefs(page, boot);
+  const defs = filterDefs(page, boot, t, lang);
   const values = filters[page] as Record<string, string>;
   const defaults = (boot?.defaults ?? LOCKED_FILTERS)[page] as Record<string, string>;
 
@@ -332,7 +336,7 @@ export default function PbiWorkspace({ viewer, boot }: { viewer: string | null; 
             }`
       }
     >
-      {p.label}
+      {t.pages[p.id]}
     </button>
   );
 
@@ -342,35 +346,39 @@ export default function PbiWorkspace({ viewer, boot }: { viewer: string | null; 
       <header className="flex h-12 shrink-0 items-center gap-3 bg-[#252423] px-3 text-white">
         <Link href="/" className="flex min-w-0 items-center gap-2 text-sm font-semibold">
           <Mark className="h-5 w-5 shrink-0 text-white" />
-          Home
+          <span className="hidden sm:inline">{t.home}</span>
         </Link>
         <span className="hidden h-5 w-px bg-white/25 sm:block" />
         <nav aria-label="Breadcrumb" className="hidden min-w-0 items-center gap-1.5 truncate text-sm text-white/80 sm:flex">
-          <span>Demo</span>
+          <span>{t.demo}</span>
           <Icon d={ICONS.chevronRight} className="h-3 w-3 shrink-0" />
-          <span className="truncate text-white">{current.label}</span>
+          <span className="truncate text-white">{t.pages[page]}</span>
         </nav>
         <div className="ml-auto flex items-center gap-2 text-sm">
+          <LangToggle variant="dark" />
           <button
             type="button"
             onClick={() => setFiltersSheet(true)}
             className="flex h-8 items-center gap-1.5 rounded-[2px] px-2 text-white/85 hover:bg-white/10 lg:hidden"
           >
             <Icon d={ICONS.filter} />
-            Filters{changed ? ` (${changed})` : ""}
+            <span className="sr-only sm:not-sr-only">{t.filters}</span>
+            {changed ? ` (${changed})` : ""}
           </button>
           <button
             type="button"
             onClick={() => setSampleOpen(true)}
-            className="flex h-8 items-center rounded-[2px] bg-[#F2C811] px-3 font-semibold text-[#252423] hover:bg-[#F2C811]/90"
+            className="flex h-8 items-center whitespace-nowrap rounded-[2px] bg-[#F2C811] px-3 font-semibold text-[#252423] hover:bg-[#F2C811]/90"
           >
-            Free sample
+            <span className="sm:hidden">{t.freeSampleShort}</span>
+            <span className="hidden sm:inline">{t.freeSample}</span>
           </button>
-          <BookCallButton className="flex h-8 items-center rounded-[2px] bg-white px-3 font-semibold text-[#252423] hover:bg-white/90">
-            Book a call
+          <BookCallButton className="flex h-8 items-center whitespace-nowrap rounded-[2px] bg-white px-3 font-semibold text-[#252423] hover:bg-white/90">
+            <span className="sm:hidden">{d.bookCallShort}</span>
+            <span className="hidden sm:inline">{d.bookCall}</span>
           </BookCallButton>
           <span
-            title={viewer ?? "Guest"}
+            title={viewer ?? t.guest}
             className="ml-1 hidden h-7 w-7 items-center justify-center rounded-full bg-[#F2C811] text-xs font-semibold text-[#252423] sm:flex"
           >
             {viewer ? viewer.charAt(0).toUpperCase() : "?"}
@@ -381,28 +389,28 @@ export default function PbiWorkspace({ viewer, boot }: { viewer: string | null; 
       <div className="flex min-h-0 flex-1">
         {/* pages pane */}
         <aside
-          aria-label="Pages"
+          aria-label={t.pagesPane}
           className={`hidden shrink-0 flex-col border-r border-[#E1DFDD] bg-white md:flex ${pagesOpen ? "w-56" : "w-9 items-center"}`}
         >
           <button
             type="button"
             onClick={() => setPagesOpen((o) => !o)}
             aria-expanded={pagesOpen}
-            title={pagesOpen ? "Collapse pages" : "Expand pages"}
+            title={pagesOpen ? t.collapsePages : t.expandPages}
             className={`flex items-center gap-2 py-2.5 text-sm font-semibold hover:bg-[#FAF9F8] ${pagesOpen ? "w-full px-3" : "flex-col px-1"}`}
           >
             <Icon d={ICONS.pages} />
             {pagesOpen ? (
               <>
-                Pages
+                {t.pagesPane}
                 <Icon d={ICONS.collapseLeft} className="ml-auto h-3.5 w-3.5 text-[#605E5C]" />
               </>
             ) : (
-              <span className="[writing-mode:vertical-rl]">Pages</span>
+              <span className="[writing-mode:vertical-rl]">{t.pagesPane}</span>
             )}
           </button>
           {pagesOpen && (
-            <div role="tablist" aria-label="Report pages" aria-orientation="vertical" className="flex flex-col pt-1">
+            <div role="tablist" aria-label={t.reportPages} aria-orientation="vertical" className="flex flex-col pt-1">
               {PAGES.map((p) => pageButton(p))}
             </div>
           )}
@@ -410,7 +418,7 @@ export default function PbiWorkspace({ viewer, boot }: { viewer: string | null; 
 
         {/* report */}
         <div className="flex min-w-0 flex-1 flex-col">
-          <div role="tablist" aria-label="Report pages" className="flex shrink-0 overflow-x-auto border-b border-[#E1DFDD] bg-white md:hidden">
+          <div role="tablist" aria-label={t.reportPages} className="flex shrink-0 overflow-x-auto border-b border-[#E1DFDD] bg-white md:hidden">
             {PAGES.map((p) => pageButton(p, true))}
           </div>
           <div className="relative min-h-0 flex-1 bg-[#EAEAEA]">
@@ -422,7 +430,7 @@ export default function PbiWorkspace({ viewer, boot }: { viewer: string | null; 
                   <Canvas key={p.id} box={box} {...SIZES[p.id]} hidden={p.id !== page}>
                     {pageHtml ? (
                       <iframe
-                        title={`${p.label} (mock data)`}
+                        title={`${t.pages[p.id]} (${t.mockData})`}
                         srcDoc={srcDoc(pageHtml)}
                         // the frame clears this once the intro has run
                         name={INTRO_PAGES.includes(p.id) ? "intro" : undefined}
@@ -452,7 +460,7 @@ export default function PbiWorkspace({ viewer, boot }: { viewer: string | null; 
         {/* filters pane: docked from lg, a sheet below */}
         {filtersSheet && <div className="fixed inset-0 z-20 bg-black/30 lg:hidden" onClick={() => setFiltersSheet(false)} />}
         <aside
-          aria-label="Filters"
+          aria-label={t.filters}
           className={`shrink-0 flex-col border-l border-[#E1DFDD] bg-[#FAF9F8] ${
             filtersSheet ? "fixed inset-y-0 right-0 z-30 flex w-72 shadow-xl" : "hidden"
           } lg:static lg:z-auto lg:flex lg:shadow-none ${filtersOpen ? "lg:w-64" : "lg:w-9 lg:items-center"}`}
@@ -462,7 +470,7 @@ export default function PbiWorkspace({ viewer, boot }: { viewer: string | null; 
               type="button"
               onClick={() => setFiltersOpen((o) => !o)}
               aria-expanded={filtersOpen}
-              title={filtersOpen ? "Collapse filters" : "Expand filters"}
+              title={filtersOpen ? t.collapseFilters : t.expandFilters}
               className={`hidden items-center gap-2 py-2.5 text-sm font-semibold hover:bg-[#F3F2F1] lg:flex ${
                 filtersOpen ? "w-full px-3" : "flex-col px-1"
               }`}
@@ -470,20 +478,20 @@ export default function PbiWorkspace({ viewer, boot }: { viewer: string | null; 
               <Icon d={ICONS.filter} />
               {filtersOpen ? (
                 <>
-                  Filters
+                  {t.filters}
                   <Icon d={ICONS.collapseRight} className="ml-auto h-3.5 w-3.5 text-[#605E5C]" />
                 </>
               ) : (
-                <span className="[writing-mode:vertical-rl]">Filters</span>
+                <span className="[writing-mode:vertical-rl]">{t.filters}</span>
               )}
             </button>
             <div className="flex w-full items-center gap-2 px-3 py-2.5 text-sm font-semibold lg:hidden">
               <Icon d={ICONS.filter} />
-              Filters
+              {t.filters}
               <button
                 type="button"
                 onClick={() => setFiltersSheet(false)}
-                aria-label="Close filters"
+                aria-label={t.closeFilters}
                 className="ml-auto flex h-7 w-7 items-center justify-center rounded-[2px] hover:bg-[#F3F2F1]"
               >
                 <Icon d={ICONS.close} />
@@ -493,14 +501,14 @@ export default function PbiWorkspace({ viewer, boot }: { viewer: string | null; 
 
           <div className={`flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-3 pb-4 ${filtersOpen ? "" : "lg:hidden"}`}>
             <div className="flex items-center justify-between pt-1">
-              <p className="text-xs font-semibold text-[#605E5C]">Filters on this page</p>
+              <p className="text-xs font-semibold text-[#605E5C]">{t.filtersOnPage}</p>
               {changed > 0 && (
                 <button
                   type="button"
                   onClick={() => setFilters((f) => ({ ...f, [page]: (boot?.defaults ?? LOCKED_FILTERS)[page] }))}
                   className="text-xs font-semibold text-[#252423] underline-offset-2 hover:underline"
                 >
-                  Reset all
+                  {t.resetAll}
                 </button>
               )}
             </div>
@@ -515,7 +523,7 @@ export default function PbiWorkspace({ viewer, boot }: { viewer: string | null; 
                 onClear={() => setFilter(d.key, defaults[d.key])}
               />
             ))}
-            <p className="pt-2 text-xs text-[#605E5C]">All figures are mock ezFocus data.</p>
+            <p className="pt-2 text-xs text-[#605E5C]">{t.allMock}</p>
           </div>
         </aside>
       </div>

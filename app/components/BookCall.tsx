@@ -1,6 +1,7 @@
 "use client";
 
 import { ReactNode, useEffect, useState } from "react";
+import { useDict } from "@/app/lib/i18n/LangProvider";
 
 // "Book a call" buttons open Calendly's booking page in a dialog over the
 // current page instead of navigating away. Styling comes from the caller.
@@ -8,6 +9,7 @@ import { ReactNode, useEffect, useState } from "react";
 export const CALENDLY_URL = "https://calendly.com/mathis-skobinsky/30min";
 
 function BookCallDialog({ onClose }: { onClose: () => void }) {
+  const t = useDict().booking;
   // only mounted after a click, so window is always there
   const src = `${CALENDLY_URL}?hide_gdpr_banner=1&embed_type=Inline&embed_domain=${window.location.host}`;
 
@@ -30,19 +32,19 @@ function BookCallDialog({ onClose }: { onClose: () => void }) {
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Book a free 30-minute call"
+        aria-label={t.title}
         className="relative flex h-[min(720px,92dvh)] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-surface shadow-[0_25px_60px_rgba(0,0,0,0.3)]"
       >
         <div className="flex items-center justify-between gap-4 border-b border-border px-5 py-3">
-          <p className="font-display text-base font-medium tracking-tight">Book a free 30-minute call</p>
+          <p className="font-display text-base font-medium tracking-tight">{t.title}</p>
           <div className="flex items-center gap-3">
             <a href={CALENDLY_URL} target="_blank" rel="noopener noreferrer" className="hidden text-xs text-muted hover:text-foreground sm:block">
-              Open in Calendly ↗
+              {t.openCalendly}
             </a>
             <button
               type="button"
               onClick={onClose}
-              aria-label="Close"
+              aria-label={t.close}
               autoFocus
               className="flex h-8 w-8 items-center justify-center rounded-full text-lg leading-none text-muted hover:bg-band hover:text-foreground"
             >
@@ -51,7 +53,7 @@ function BookCallDialog({ onClose }: { onClose: () => void }) {
           </div>
         </div>
         <div className="relative flex-1 bg-surface">
-          <p className="absolute inset-0 flex items-center justify-center text-sm text-muted">Loading calendar…</p>
+          <p className="absolute inset-0 flex items-center justify-center text-sm text-muted">{t.loading}</p>
           <iframe src={src} title="Calendly booking" className="relative h-full w-full border-0" />
         </div>
       </div>
