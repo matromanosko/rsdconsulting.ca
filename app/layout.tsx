@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Analytics } from "@vercel/analytics/next";
 import { Geist } from "next/font/google";
 import { Space_Grotesk } from "next/font/google";
 import "./globals.css";
@@ -38,6 +39,7 @@ export default async function RootLayout({
     >
       <body className="min-h-full flex flex-col font-sans">
         <LangProvider lang={lang}>{children}</LangProvider>
+        <Analytics />
       </body>
     </html>
   );
