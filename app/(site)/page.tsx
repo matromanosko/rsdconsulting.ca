@@ -95,7 +95,7 @@ export default function Home() {
             Common <Hl>questions</Hl>
           </h2>
         </div>
-        <div className="flex max-w-3xl flex-col">
+        <div className="flex flex-col">
           {faqs.map((f) => (
             <details key={f.question} className="group border-b border-border py-5">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-medium [&::-webkit-details-marker]:hidden">

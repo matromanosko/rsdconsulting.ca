@@ -80,11 +80,46 @@ const keyOf = (req: ReportRequest) => JSON.stringify(req);
 
 const FONT = '"Segoe UI", "Segoe UI Web (West European)", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", sans-serif';
 
+// "This scrolls" hint, run inside the report frame when the frame is named
+// "intro" (first open of the agency and supplier pages): each scroll area
+// eases down a little, pauses, and eases back up. Any touch, wheel or key
+// stops it and returns the lists to the top.
+const INTRO_JS = `(() => {
+  if (window.name !== "intro" || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const DELAY = 500, DOWN = 1170, HOLD = 0, UP = 1170;
+  const scrolls = [...document.querySelectorAll(".scroll")].filter((el) => el.scrollHeight > el.clientHeight + 8);
+  if (!scrolls.length) return;
+  const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+  let raf = 0, done = false;
+  const stop = () => {
+    if (done) return;
+    done = true;
+    cancelAnimationFrame(raf);
+    scrolls.forEach((el) => (el.scrollTop = 0));
+  };
+  ["pointerdown", "wheel", "keydown", "touchstart"].forEach((t) => addEventListener(t, stop, { once: true, capture: true }));
+  const t0 = performance.now() + DELAY;
+  const tick = (now) => {
+    if (done) return;
+    const t = now - t0;
+    let k = 0;
+    if (t > 0 && t < DOWN) k = ease(t / DOWN);
+    else if (t >= DOWN && t < DOWN + HOLD) k = 1;
+    else if (t >= DOWN + HOLD) k = 1 - ease(Math.min((t - DOWN - HOLD) / UP, 1));
+    scrolls.forEach((el) => (el.scrollTop = Math.min(120, el.scrollHeight - el.clientHeight) * k));
+    if (t < DOWN + HOLD + UP) raf = requestAnimationFrame(tick);
+    else stop();
+  };
+  raf = requestAnimationFrame(tick);
+})();`;
+
+const INTRO_PAGES: PageId[] = ["command", "spotlight"];
+
 function srcDoc(html: string) {
   return (
     "<!doctype html><html><head><meta charset='utf-8'>" +
     "<style>html,body{margin:0;padding:0;background:#F6F3EE;}</style>" +
-    `</head><body>${html}</body></html>`
+    `</head><body>${html}<script>${INTRO_JS}</script></body></html>`
   );
 }
 
@@ -224,6 +259,8 @@ export default function PbiWorkspace({ viewer, boot }: { viewer: string | null; 
   const [filters, setFilters] = useState<PageFilters>(boot?.defaults ?? LOCKED_FILTERS);
   const [pagesOpen, setPagesOpen] = useState(true);
   const [sampleOpen, setSampleOpen] = useState(false);
+  // pages whose intro animation has already played this visit
+  const [introSeen, setIntroSeen] = useState<PageId[]>([]);
   const [filtersOpen, setFiltersOpen] = useState(true); // docked pane, lg and up
   const [filtersSheet, setFiltersSheet] = useState(false); // overlay, below lg
 
@@ -245,8 +282,8 @@ export default function PbiWorkspace({ viewer, boot }: { viewer: string | null; 
     if (locked || cache.has(key)) return;
     let live = true;
     renderReportPage(JSON.parse(key)).then((next) => {
-      // null means the access cookie is gone: reload into the gate
-      if (next === null) return window.location.reload();
+      // null means the server rejected the request; keep the last render
+      if (next === null) return;
       setCache((m) => new Map(m).set(key, next));
       if (live) setShown((s) => s && { ...s, [JSON.parse(key).page as PageId]: next });
     });
@@ -369,7 +406,11 @@ export default function PbiWorkspace({ viewer, boot }: { viewer: string | null; 
                 <iframe
                   title={`${current.label} (mock data)`}
                   srcDoc={srcDoc(html)}
-                  sandbox=""
+                  // renaming doesn't reload the frame, so the intro only runs on a page's first load
+                  name={INTRO_PAGES.includes(page) && !introSeen.includes(page) ? "intro" : ""}
+                  onLoad={() => setIntroSeen((s) => (s.includes(page) ? s : [...s, page]))}
+                  // scripts for the intro only; no same-origin access to the site
+                  sandbox="allow-scripts"
                   style={{
                     width: size.width,
                     height: size.height,
