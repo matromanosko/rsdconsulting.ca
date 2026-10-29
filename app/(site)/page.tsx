@@ -6,7 +6,7 @@ import BookCallButton from "@/app/components/BookCall";
 import { getLang } from "@/app/lib/i18n/server";
 import { dict } from "@/app/lib/i18n/dictionaries";
 
-const wrap = "mx-auto w-full max-w-6xl px-4 sm:px-8";
+const wrap = "mx-auto w-full max-w-7xl px-4 sm:px-8";
 const h2 = "font-display text-3xl font-medium leading-tight tracking-tight sm:text-5xl";
 
 // [before, accent, after] -> text with the accented word
@@ -32,9 +32,12 @@ export default async function Home() {
         <div className="flex flex-col gap-6">
           <Eyebrow>{t.heroEyebrow}</Eyebrow>
           <h1 className="font-display text-4xl font-medium leading-[1.05] tracking-tight sm:text-6xl">
-            <Accented parts={t.heroTitle} />
+            {t.heroTitle}
           </h1>
-          <p className="max-w-md text-base leading-relaxed text-muted sm:text-lg">
+          <p className="font-display text-2xl font-medium leading-tight tracking-tight sm:text-3xl">
+            <Accented parts={t.heroSubtitle} />
+          </p>
+          <p className="max-w-xl text-base leading-relaxed text-muted sm:text-lg">
             {t.heroBody}
           </p>
           <div className="flex flex-wrap gap-3 pt-2">
@@ -54,7 +57,7 @@ export default async function Home() {
 
       {/* ---------- examples ---------- */}
       <section id="examples" className={`${wrap} scroll-mt-8 pb-10 pt-10 lg:pb-12 lg:pt-12`}>
-        <div className="mx-auto flex max-w-3xl flex-col items-center gap-5 text-center">
+        <div className="mx-auto flex max-w-4xl flex-col items-center gap-5 text-center">
           <Eyebrow>{t.examplesEyebrow}</Eyebrow>
           <h2 className={h2}>
             {exLine1}{" "}
@@ -62,12 +65,12 @@ export default async function Home() {
               <Accented parts={[exBefore, exHl, exAfter]} />
             </span>
           </h2>
-          <p className="max-w-xl text-muted">
+          <p className="max-w-2xl text-muted">
             {t.examplesBody[0]}{" "}
             <span className="block">{t.examplesBody[1]}</span>
           </p>
         </div>
-        <div className="mx-auto mt-12 max-w-4xl">
+        <div className="mx-auto mt-12 max-w-6xl">
           <PbiPreview t={d.pbi} />
         </div>
         <div className="mt-8 flex justify-center">

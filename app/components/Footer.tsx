@@ -10,7 +10,7 @@ export default async function Footer() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="mx-auto w-full max-w-6xl px-4 pb-6 sm:px-8">
+    <footer className="mx-auto w-full max-w-7xl px-4 pb-6 sm:px-8">
       <div className="relative overflow-hidden rounded-2xl bg-ink px-6 pb-6 pt-10 text-white sm:px-12 sm:pb-8 sm:pt-14">
         <div className="relative z-10 flex flex-col gap-8">
           <Link href="/" className="flex items-center gap-2 font-display text-3xl font-medium tracking-tight">

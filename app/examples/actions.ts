@@ -8,8 +8,10 @@ import { getLang } from "@/app/lib/i18n/server";
 import { dict } from "@/app/lib/i18n/dictionaries";
 
 // Free sample requests from the home page and /examples. A valid lead is
-// POSTed as JSON to LEADS_WEBHOOK_URL (Zapier, Make, Formspree, Slack…) when
-// that is set, and ACCESS_COOKIE remembers the visitor's first name.
+// POSTed as JSON to LEADS_WEBHOOK_URL when that is set (in production, the
+// Apps Script in scripts/free-sample-sheet.gs, which appends it to the "Free
+// sample requests" Google Sheet), and ACCESS_COOKIE remembers the visitor's
+// first name.
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 

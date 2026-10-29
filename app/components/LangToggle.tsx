@@ -12,17 +12,21 @@ export default function LangToggle({ variant = "light" }: { variant?: "light" | 
   const t = useDict();
   const [pending, startTransition] = useTransition();
 
-  const shell = variant === "dark" ? "bg-white/10" : "bg-band";
-  const on = variant === "dark" ? "bg-white text-[#252423]" : "bg-surface text-foreground shadow-sm";
-  const off = variant === "dark" ? "text-white/70 hover:text-white" : "text-muted hover:text-foreground";
+  const on = variant === "dark" ? "text-white" : "text-foreground";
+  const off = variant === "dark" ? "text-white/60 hover:text-white" : "text-muted hover:text-foreground";
 
   return (
     <div
       role="group"
       aria-label={t.nav.language}
-      className={`flex shrink-0 items-center rounded-full p-0.5 text-xs font-semibold ${shell} ${pending ? "opacity-60" : ""}`}
+      className={`flex shrink-0 items-center gap-1.5 text-xs font-semibold ${pending ? "opacity-60" : ""}`}
     >
-      {LANGS.map((l) => (
+      {LANGS.map((l, i) => [
+        i > 0 && (
+          <span key={`sep-${l}`} aria-hidden className={`hidden sm:block ${variant === "dark" ? "text-white/60" : "text-muted"}`}>
+            /
+          </span>
+        ),
         <button
           key={l}
           type="button"
@@ -31,11 +35,11 @@ export default function LangToggle({ variant = "light" }: { variant?: "light" | 
           title={t.toggle[l]}
           disabled={pending}
           onClick={() => l !== lang && startTransition(() => setLang(l))}
-          className={`rounded-full px-2.5 py-1 uppercase transition-colors ${l === lang ? `hidden sm:block ${on}` : off}`}
+          className={`py-1 uppercase transition-colors ${l === lang ? `hidden cursor-default sm:block ${on}` : `cursor-pointer ${off}`}`}
         >
           {l}
-        </button>
-      ))}
+        </button>,
+      ])}
     </div>
   );
 }

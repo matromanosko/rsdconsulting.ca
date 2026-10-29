@@ -29,7 +29,8 @@ const en = {
   },
   home: {
     heroEyebrow: "ezFocus-to-Power BI specialists",
-    heroTitle: ["Automate data handling, focus on ", "decisions"] as Accent,
+    heroTitle: "Stop spending hours formatting data",
+    heroSubtitle: ["Automate data handling, focus on ", "decisions"] as Accent,
     heroBody: "We're Power BI engineers specialised in helping Canadian wine & spirit agencies save time on data work.",
     seeExamples: "See live examples",
     integrated: ["", "Seamlessly integrated", " with ezFocus data"] as Accent,
@@ -170,11 +171,12 @@ const fr: Dictionary = {
   },
   home: {
     heroEyebrow: "Spécialistes ezFocus et Power BI",
-    heroTitle: ["Automatisez vos données, misez sur vos ", "décisions"],
+    heroTitle: "Ne passez plus des heures à formater vos données",
+    heroSubtitle: ["Automatisez vos données, misez sur vos ", "décisions"],
     heroBody:
-      "Nous sommes des ingénieurs Power BI qui aident les agences de vins et spiritueux canadiennes à gagner du temps sur le traitement de leurs données.",
+      "Nous sommes deux ingénieurs Power BI qui aident les agences de vins et spiritueux canadiennes à gagner du temps sur le traitement de leurs données.",
     seeExamples: "Voir les exemples en direct",
-    integrated: ["", "Intégration transparente", " avec vos données ezFocus"],
+    integrated: ["", "Intégration sur-mesure", " avec vos données ezFocus"],
     examplesEyebrow: "Exemples en direct",
     examplesTitle: ["Suivez vos ventes", "exactement comme vous l’avez ", "rêvé", "."],
     examplesBody: [

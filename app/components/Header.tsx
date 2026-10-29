@@ -14,7 +14,7 @@ export default async function Header() {
   ];
   return (
     <header>
-      <div className="relative mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-6 sm:px-8">
+      <div className="relative mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-6 sm:px-8">
         <Link href="/" className="flex min-w-0 items-center gap-2 font-display tracking-tight">
           <Mark className="h-6 w-6 shrink-0" />
           <span className="flex min-w-0 flex-col leading-tight">
